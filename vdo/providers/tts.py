@@ -48,9 +48,8 @@ def ensure_voice() -> tuple[Path, Path]:
 
 
 def _clean_for_tts(text: str) -> str:
-    text = re.sub(r"\s+", " ", text or "").strip()
-    text = text.replace("—", ", ").replace("–", ", ")
-    text = text.replace(";", ". ")
+    text = (text or "").replace("—", ", ").replace("–", ", ").replace(";", ". ")
+    text = re.sub(r"\s+", " ", text).strip()
     text = re.sub(r"\.{3,}", "...", text)
     return text
 
