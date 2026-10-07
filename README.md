@@ -112,6 +112,17 @@ The system deliberately prefers reliable archive imagery plus motion over
 making every scene with a hosted text-to-video model. That is the main reason
 long documentaries remain practical and restartable.
 
+## Run fully from GitHub
+
+VDO also includes a one-click GitHub Actions execution mode. Open **Actions → VDO Documentary Runner → Run workflow**, enter a one-line topic and duration, then choose:
+
+- `github`: uses a standard GitHub-hosted runner for the complete pipeline.
+- `self-hosted`: uses your own GitHub Actions runner, recommended for larger models, GPUs and longer documentaries.
+
+The GitHub mode is tuned for a small Qwen3 model so a 1-minute sample can run within hosted CPU/storage limits. The generated MP4 and documentary metadata are uploaded as a workflow artifact.
+
+See [docs/RUN_GITHUB.md](docs/RUN_GITHUB.md) for the setup and self-hosted configuration.
+
 ## API mode
 
 Run:
