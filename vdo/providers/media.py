@@ -67,7 +67,7 @@ async def _search_commons(client: httpx.AsyncClient, query: str, limit: int = 10
     return assets
 
 
-def _rank(asset: dict, query_tokens: list[str], real_footage_first: bool = True) -> tuple:
+def _rank(asset: dict, query_tokens: list[str] | None = None, real_footage_first: bool = True) -> tuple:
     license_text = asset.get("license", "").lower()
     clear_license = 0 if (
         "public domain" in license_text
@@ -79,6 +79,7 @@ def _rank(asset: dict, query_tokens: list[str], real_footage_first: bool = True)
     is_video = asset.get("mime") in VIDEO_MIMES
     title = str(asset.get("title", "")).lower()
     description = str(asset.get("description", "")).lower()
+    query_tokens = query_tokens or _query_tokens(title)
     relevance = sum(1 for token in query_tokens if token in f"{title} {description}")
 
     width = int(asset.get("width") or 0)
