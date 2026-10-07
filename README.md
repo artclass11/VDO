@@ -123,6 +123,22 @@ The GitHub mode is tuned for a small Qwen3 model so a 1-minute sample can run wi
 
 See [docs/RUN_GITHUB.md](docs/RUN_GITHUB.md) for the setup and self-hosted configuration.
 
+## Cinematic quality mode
+
+The current pipeline is tuned for documentary-style editing rather than presentation slides:
+- Kokoro is the preferred natural neural voice backend, with Piper as a local fallback.
+- Archive video is ranked ahead of still imagery when a suitable open-license clip exists.
+- Scene graphics are limited to the opening shot by default.
+- Short cinematic crossfades are used between shots.
+- The background score is a harmonic ambient bed with voice-aware ducking.
+- Color, contrast and subtle vignette processing are applied consistently.
+
+For the higher-quality local voice backend install:
+
+    pip install -e ".[kokoro]"
+
+Kokoro voice can be selected with VDO_KOKORO_VOICE (for example af_heart).
+
 ## API mode
 
 Run:
