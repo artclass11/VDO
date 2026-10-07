@@ -28,7 +28,7 @@ def _grade_filters() -> str:
 
 def _cinematic_bars() -> str:
     return (
-        ",drawbox=x=0:y=0:w=iw:h=30:color=black@0.72:t=fill,"
+        ",drawbox=x=0:y=0:w=iw:h=30:color=black@0.72:t=fill"
         ",drawbox=x=0:y=ih-30:w=iw:h=30:color=black@0.72:t=fill"
     )
 
