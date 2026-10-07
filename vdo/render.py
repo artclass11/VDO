@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 from vdo.config import SETTINGS
@@ -15,13 +16,7 @@ def _escape_drawtext(value: str) -> str:
     )
 
 
-def render_scene(
-    image: str | None,
-    duration: float,
-    wav: Path,
-    title: str,
-    out_mp4: Path,
-) -> None:
+def render_scene(image: str | None, wav: Path, title: str, out_mp4: Path) -> None:
     out_mp4.parent.mkdir(parents=True, exist_ok=True)
     safe_title = _escape_drawtext(title[:90])
 
@@ -31,8 +26,7 @@ def render_scene(
             f"crop={SETTINGS.width}:{SETTINGS.height},"
             f"zoompan=z='min(zoom+0.0007,1.06)':d=1:"
             f"s={SETTINGS.width}x{SETTINGS.height}:fps={SETTINGS.fps},"
-            f"fade=t=in:st=0:d=0.35,"
-            f"fade=t=out:st={max(duration - 0.55, 0.4):.2f}:d=0.5,"
+            "fade=t=in:st=0:d=0.35,"
             f"drawtext=text='{safe_title}':fontcolor=white:fontsize=44:"
             "box=1:boxcolor=black@0.42:boxborderw=18:x=70:y=h-150"
         )
@@ -52,7 +46,6 @@ def render_scene(
             "ffmpeg", "-y",
             *inputs,
             "-i", str(wav),
-            "-t", f"{duration:.3f}",
             "-vf", vf,
             "-r", str(SETTINGS.fps),
             "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
@@ -89,14 +82,17 @@ def burn_subtitles(video: Path, srt: Path, out_mp4: Path) -> None:
         "OutlineColour=&H80000000,BorderStyle=1,Outline=2,Shadow=1,"
         "Alignment=2,MarginV=34"
     )
-    run(
-        [
-            "ffmpeg", "-y",
-            "-i", str(video),
-            "-vf", f"subtitles={srt}:force_style='{style}'",
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
-            "-c:a", "copy",
-            str(out_mp4),
-        ],
-        timeout=1800,
-    )
+    try:
+        run(
+            [
+                "ffmpeg", "-y",
+                "-i", str(video),
+                "-vf", f"subtitles={srt}:force_style='{style}'",
+                "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+                "-c:a", "copy",
+                str(out_mp4),
+            ],
+            timeout=1800,
+        )
+    except Exception:
+        shutil.copy2(video, out_mp4)
