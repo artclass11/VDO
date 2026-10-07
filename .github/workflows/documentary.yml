@@ -135,6 +135,7 @@ jobs:
           path: |
             outputs/**/final/documentary.mp4
             outputs/**/captions.srt
+            outputs/**/chapters.txt
             outputs/**/documentary.json
             outputs/**/research.json
             outputs/**/media/manifest.json
