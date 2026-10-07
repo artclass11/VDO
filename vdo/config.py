@@ -11,11 +11,24 @@ class Settings:
     ollama_url: str = os.getenv("VDO_OLLAMA_URL", "http://127.0.0.1:11434")
     ollama_model: str = os.getenv("VDO_OLLAMA_MODEL", "qwen3:8b")
 
-    tts_provider: str = os.getenv("VDO_TTS_PROVIDER", "kokoro").lower()
+    tts_provider: str = os.getenv("VDO_TTS_PROVIDER", "qwen3").lower()
     piper_model: str = os.getenv("VDO_PIPER_MODEL", "en_US-lessac-medium")
     piper_data_dir: str = os.getenv("VDO_PIPER_DATA_DIR", "./models")
     kokoro_voice: str = os.getenv("VDO_KOKORO_VOICE", "af_heart")
     kokoro_lang: str = os.getenv("VDO_KOKORO_LANG", "a")
+
+    # Quality-first local narration.
+    qwen3_model: str = os.getenv("VDO_QWEN3_MODEL", "auto")
+    qwen3_voice: str = os.getenv("VDO_QWEN3_VOICE", "Aiden")
+    qwen3_lang: str = os.getenv("VDO_QWEN3_LANG", "English")
+    qwen3_instruct: str = os.getenv(
+        "VDO_QWEN3_INSTRUCT",
+        "Natural human documentary narrator. Warm, intimate, confident, measured, with subtle emotional changes and real conversational pacing. Never sound like an announcer or a synthetic assistant.",
+    )
+    qwen3_device: str = os.getenv("VDO_QWEN3_DEVICE", "auto")
+    voice_reference: str = os.getenv("VDO_VOICE_REFERENCE", "").strip()
+    voice_reference_text: str = os.getenv("VDO_VOICE_REFERENCE_TEXT", "").strip()
+    allow_piper_fallback: bool = os.getenv("VDO_ALLOW_PIPER_FALLBACK", "0") in {"1", "true", "yes"}
 
     fps: int = int(os.getenv("VDO_FPS", "30"))
     width: int = int(os.getenv("VDO_WIDTH", "1920"))
