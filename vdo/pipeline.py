@@ -16,7 +16,7 @@ from vdo.subtitles import make_srt
 from vdo.utils import run, write_json
 
 
-PIPELINE_VERSION = "2.0-cinematic-natural-voice"
+PIPELINE_VERSION = "3.0-real-documentary-story-engine"
 
 
 def _job_dir(topic: str, root: Path) -> Path:
@@ -40,6 +40,8 @@ def _reset_if_needed(job_dir: Path) -> None:
         return
 
     for pattern in (
+        "documentary.json",
+        "chapters.txt",
         "scenes/*.mp4",
         "final/*.mp4",
         "audio/*.wav",
@@ -144,6 +146,8 @@ class DocumentaryPipeline:
                     scene["title"],
                     out,
                     opening=index == 0,
+                    on_screen=scene.get("on_screen", ""),
+                    story_role=scene.get("story_role", "context"),
                 )
             return out
 
@@ -157,6 +161,19 @@ class DocumentaryPipeline:
         assembled = final_dir / "documentary_clean.mp4"
         if not assembled.exists():
             await asyncio.to_thread(concatenate, scene_files, assembled)
+
+        chapters_path = self.job_dir / "chapters.txt"
+        elapsed = 0.0
+        seen_chapters: set[str] = set()
+        chapter_lines: list[str] = []
+        for scene, rendered in zip(scenes, scene_files):
+            chapter = str(scene.get("chapter", "")).strip()
+            if chapter and chapter not in seen_chapters:
+                minutes_mark, seconds_mark = divmod(int(elapsed), 60)
+                chapter_lines.append(f"{minutes_mark:02d}:{seconds_mark:02d} {chapter}")
+                seen_chapters.add(chapter)
+            elapsed += _duration(rendered)
+        chapters_path.write_text("\n".join(chapter_lines) + ("\n" if chapter_lines else ""), encoding="utf-8")
 
         narration = self.job_dir / "narration.wav"
         if not narration.exists():
@@ -202,6 +219,10 @@ class DocumentaryPipeline:
                 "cinematic": SETTINGS.cinematic,
                 "transition_seconds": SETTINGS.transition_seconds,
                 "output": str(final.resolve()),
+                "chapters_file": str(chapters_path.resolve()),
+                "hook": doc.hook,
+                "anchor_fact": doc.anchor_fact,
+                "human_stakes": doc.human_stakes,
                 "research_file": str(research_path.resolve()),
                 "media_manifest": str(manifest_path.resolve()),
             },
