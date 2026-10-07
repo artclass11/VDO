@@ -1,0 +1,98 @@
+name: VDO Quality Demo
+
+on:
+  push:
+    branches:
+      - demo-quality-runner
+
+permissions:
+  contents: read
+
+jobs:
+  demo:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      VDO_OUTPUT_DIR: ./outputs
+      VDO_OLLAMA_URL: http://127.0.0.1:11434
+      VDO_OLLAMA_MODEL: qwen3:0.6b
+      VDO_TTS_PROVIDER: kokoro
+      VDO_KOKORO_VOICE: af_heart
+      VDO_KOKORO_LANG: a
+      VDO_PIPER_MODEL: en_US-lessac-medium
+      VDO_PIPER_DATA_DIR: ./models
+      VDO_WHISPER_MODEL: tiny
+      VDO_WHISPER_DEVICE: cpu
+      VDO_WHISPER_COMPUTE_TYPE: int8
+      VDO_CINEMATIC: "1"
+      VDO_SHOW_SCENE_TITLES: "0"
+      VDO_TRANSITION_SECONDS: "0.35"
+      VDO_MUSIC_LEVEL: "0.11"
+      VDO_WORKERS: 2
+      VDO_MEDIA_WORKERS: 6
+      VDO_FPS: 30
+      VDO_WIDTH: 1920
+      VDO_HEIGHT: 1080
+      VDO_REQUEST_TIMEOUT: 60
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: System tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg espeak-ng
+
+      - name: Install VDO with Kokoro
+        run: python -m pip install -e ".[kokoro]"
+
+      - name: Cache AI models
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.ollama
+            ~/.cache/huggingface/hub
+            ./models
+          key: vdo-demo-v3-\${{ runner.os }}-qwen3-kokoro
+
+      - name: Install Ollama
+        run: |
+          curl -fsSL https://ollama.com/install.sh | sh
+
+      - name: Start Ollama
+        run: |
+          nohup ollama serve > /tmp/ollama.log 2>&1 &
+          for i in $(seq 1 60); do
+            curl -fsS http://127.0.0.1:11434/api/tags >/dev/null 2>&1 && break
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:11434/api/tags >/dev/null
+          ollama pull "\${VDO_OLLAMA_MODEL}"
+
+      - name: Generate one-minute documentary
+        run: |
+          python main.py "The rise of artificial intelligence" --minutes 1
+
+      - name: Validate media
+        run: |
+          set -euo pipefail
+          VIDEO="$(find outputs -type f -path '*/final/documentary.mp4' | head -n 1)"
+          test -s "\${VIDEO}"
+          ffprobe -v error \
+            -show_entries format=duration,size:stream=codec_name,width,height \
+            -of default=noprint_wrappers=1 "\${VIDEO}"
+          cp "\${VIDEO}" ./VDO_1min_quality_demo.mp4
+
+      - name: Upload demo
+        uses: actions/upload-artifact@v4
+        with:
+          name: VDO-1min-quality-demo
+          path: VDO_1min_quality_demo.mp4
+          retention-days: 7
