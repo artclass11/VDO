@@ -139,6 +139,22 @@ For the higher-quality local voice backend install:
 
 Kokoro voice can be selected with VDO_KOKORO_VOICE (for example af_heart).
 
+## Real documentary story engine
+
+VDO's planner is designed around documentary storytelling rather than slide-deck generation:
+
+- a strong opening thesis or question;
+- one verified anchor fact that can return later in the story;
+- explicit human stakes and a reason the viewer should care;
+- 5–9 descriptive chapters with a clear dramatic purpose;
+- guide-style conversational narration;
+- real-world archive footage, human moments, details and process shots before generic illustrations;
+- a mid-story turning point and reflective consequence;
+- restrained evidence overlays instead of constant graphics;
+- automatic chapters.txt output for YouTube chapter markers.
+
+The engine does not imitate a specific filmmaker or copy a reference film. It uses general documentary techniques: authentic footage, clear narrative beats, measured narration, chapter structure, emotional transitions and factual grounding.
+
 ## API mode
 
 Run:
