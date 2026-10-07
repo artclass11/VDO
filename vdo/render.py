@@ -16,41 +16,79 @@ def _escape_drawtext(value: str) -> str:
     )
 
 
-def render_scene(asset: str | None, wav: Path, title: str, out_mp4: Path) -> None:
+def _grade_filters() -> str:
+    if not SETTINGS.cinematic:
+        return ""
+    return (
+        ",eq=contrast=1.06:brightness=-0.018:saturation=1.06,"
+        "unsharp=luma_msize_x=5:luma_msize_y=5:luma_amount=0.25,"
+        "vignette=PI/5"
+    )
+
+
+def _cinematic_bars() -> str:
+    return (
+        ",drawbox=x=0:y=0:w=iw:h=30:color=black@0.72:t=fill,"
+        ",drawbox=x=0:y=ih-30:w=iw:h=30:color=black@0.72:t=fill"
+    )
+
+
+def _title_overlay(title: str, opening: bool) -> str:
+    if not title or (not SETTINGS.show_scene_titles and not opening):
+        return ""
+    safe = _escape_drawtext(title[:90])
+    enable = ":enable='between(t,0,4)'" if opening else ""
+    return (
+        f",drawtext=text='{safe}':fontcolor=white:fontsize=52:"
+        "box=1:boxcolor=black@0.32:boxborderw=18:"
+        "x=76:y=h-165"
+        + enable
+    )
+
+
+def render_scene(
+    asset: str | None,
+    wav: Path,
+    title: str,
+    out_mp4: Path,
+    *,
+    opening: bool = False,
+) -> None:
     out_mp4.parent.mkdir(parents=True, exist_ok=True)
-    safe_title = _escape_drawtext(title[:90])
     suffix = Path(asset).suffix.lower() if asset else ""
+    common = (
+        _grade_filters()
+        + _cinematic_bars()
+        + _title_overlay(title, opening)
+    )
 
     if asset and suffix in {".mp4", ".webm", ".ogg"}:
         vf = (
             f"scale={SETTINGS.width}:{SETTINGS.height}:force_original_aspect_ratio=increase,"
             f"crop={SETTINGS.width}:{SETTINGS.height},"
-            "fps=30,"
-            "fade=t=in:st=0:d=0.25,"
-            f"drawtext=text='{safe_title}':fontcolor=white:fontsize=42:"
-            "box=1:boxcolor=black@0.42:boxborderw=18:x=70:y=h-150"
+            f"fps={SETTINGS.fps},"
+            "setpts=PTS-STARTPTS"
+            + common
         )
         inputs = ["-stream_loop", "-1", "-i", asset]
     elif asset:
         vf = (
             f"scale={SETTINGS.width}:{SETTINGS.height}:force_original_aspect_ratio=increase,"
             f"crop={SETTINGS.width}:{SETTINGS.height},"
-            f"zoompan=z='min(zoom+0.0007,1.06)':d=1:"
+            f"zoompan=z='min(zoom+0.00035,1.05)':d=1:"
             f"s={SETTINGS.width}x{SETTINGS.height}:fps={SETTINGS.fps},"
-            "fade=t=in:st=0:d=0.35,"
-            f"drawtext=text='{safe_title}':fontcolor=white:fontsize=44:"
-            "box=1:boxcolor=black@0.42:boxborderw=18:x=70:y=h-150"
+            "setpts=PTS-STARTPTS"
+            + common
         )
         inputs = ["-loop", "1", "-i", asset]
     else:
         vf = (
-            f"drawtext=text='{safe_title}':fontcolor=white:fontsize=54:"
-            "box=1:boxcolor=black@0.55:boxborderw=22:x=90:y=h-170"
+            f"color=c=0x0b0d10:s={SETTINGS.width}x{SETTINGS.height}:r={SETTINGS.fps},"
+            "setpts=PTS-STARTPTS"
+            + common
         )
-        inputs = [
-            "-f", "lavfi",
-            "-i", f"color=c=0x101010:s={SETTINGS.width}x{SETTINGS.height}:r={SETTINGS.fps}",
-        ]
+        inputs = ["-f", "lavfi", "-i", vf]
+        vf = "format=yuv420p"
 
     run(
         [
@@ -62,40 +100,120 @@ def render_scene(asset: str | None, wav: Path, title: str, out_mp4: Path) -> Non
             "-shortest",
             "-vf", vf,
             "-r", str(SETTINGS.fps),
-            "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+            "-c:v", "libx264", "-preset", "faster", "-crf", "19",
             "-pix_fmt", "yuv420p",
             "-c:a", "aac", "-b:a", "160k",
+            "-movflags", "+faststart",
             str(out_mp4),
         ],
         timeout=900,
     )
 
 
-def concatenate(scene_files: list[Path], out_mp4: Path) -> None:
-    concat_file = out_mp4.with_suffix(".concat.txt")
-    concat_file.write_text(
-        "\n".join(f"file '{p.resolve()}'" for p in scene_files) + "\n",
-        encoding="utf-8",
+def _duration(path: Path) -> float:
+    result = run(
+        [
+            "ffprobe", "-v", "error",
+            "-show_entries", "format=duration",
+            "-of", "default=noprint_wrappers=1:nokey=1",
+            str(path),
+        ],
+        timeout=60,
     )
+    return float(result.stdout.strip())
+
+
+def concatenate(scene_files: list[Path], out_mp4: Path) -> None:
+    if not scene_files:
+        raise ValueError("No scene files to concatenate")
+    if len(scene_files) == 1 or SETTINGS.transition_seconds <= 0:
+        concat_file = out_mp4.with_suffix(".concat.txt")
+        concat_file.write_text(
+            "\n".join(f"file '{p.resolve()}'" for p in scene_files) + "\n",
+            encoding="utf-8",
+        )
+        run(
+            [
+                "ffmpeg", "-y",
+                "-f", "concat", "-safe", "0",
+                "-i", str(concat_file),
+                "-c", "copy",
+                "-movflags", "+faststart",
+                str(out_mp4),
+            ],
+            timeout=1800,
+        )
+        return
+
+    transition = min(SETTINGS.transition_seconds, 0.75)
+    durations = [_duration(p) for p in scene_files]
+    if any(d <= transition * 1.5 for d in durations):
+        transition = 0.0
+
+    if transition <= 0:
+        return concatenate(scene_files, out_mp4)
+
+    filters: list[str] = []
+    video_label = "0:v"
+    audio_label = "0:a"
+    cumulative = durations[0]
+
+    for i in range(1, len(scene_files)):
+        v_out = f"v{i}"
+        a_out = f"a{i}"
+        offset = cumulative - transition
+        filters.append(
+            f"[{video_label}][{i}:v]xfade=transition=fade:duration={transition}:offset={offset:.3f}[{v_out}]"
+        )
+        filters.append(
+            f"[{audio_label}][{i}:a]acrossfade=d={transition}:c1=tri:c2=tri[{a_out}]"
+        )
+        video_label = v_out
+        audio_label = a_out
+        cumulative += durations[i] - transition
+
+    inputs: list[str] = []
+    for p in scene_files:
+        inputs += ["-i", str(p)]
+
     run(
-        ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(concat_file), "-c", "copy", str(out_mp4)],
+        [
+            "ffmpeg", "-y",
+            *inputs,
+            "-filter_complex", ";".join(filters),
+            "-map", f"[{video_label}]",
+            "-map", f"[{audio_label}]",
+            "-c:v", "libx264", "-preset", "faster", "-crf", "19",
+            "-pix_fmt", "yuv420p",
+            "-c:a", "aac", "-b:a", "160k",
+            "-movflags", "+faststart",
+            str(out_mp4),
+        ],
         timeout=1800,
     )
 
 
 def mix_music(video: Path, music: Path, out_mp4: Path) -> None:
+    level = SETTINGS.music_level
+    filter_complex = (
+        "[0:a]loudnorm=I=-16:TP=-1.5:LRA=7[voice];"
+        f"[1:a]volume={level:.3f}[music];"
+        "[music][voice]sidechaincompress=threshold=0.035:ratio=8:attack=25:release=500[ducked];"
+        "[voice][ducked]amix=inputs=2:duration=first:dropout_transition=3,"
+        "alimiter=limit=0.95[a]"
+    )
     run(
         [
             "ffmpeg", "-y",
             "-i", str(video),
             "-i", str(music),
-            "-filter_complex",
-            "[1:a]volume=0.08[m];[0:a][m]amix=inputs=2:duration=first:dropout_transition=3[a]",
+            "-filter_complex", filter_complex,
             "-map", "0:v:0",
             "-map", "[a]",
             "-c:v", "copy",
             "-c:a", "aac",
             "-b:a", "192k",
+            "-movflags", "+faststart",
             str(out_mp4),
         ],
         timeout=1800,
@@ -104,9 +222,10 @@ def mix_music(video: Path, music: Path, out_mp4: Path) -> None:
 
 def burn_subtitles(video: Path, srt: Path, out_mp4: Path) -> None:
     style = (
-        "FontName=DejaVu Sans,FontSize=22,PrimaryColour=&H00FFFFFF,"
-        "OutlineColour=&H80000000,BorderStyle=1,Outline=2,Shadow=1,"
-        "Alignment=2,MarginV=34"
+        "FontName=DejaVu Sans,FontSize=26,PrimaryColour=&H00FFFFFF,"
+        "OutlineColour=&H70000000,BackColour=&H90000000,"
+        "BorderStyle=3,Outline=0,Shadow=0,Alignment=2,"
+        "MarginV=82,WrapStyle=2,Spacing=0"
     )
     try:
         run(
@@ -114,8 +233,10 @@ def burn_subtitles(video: Path, srt: Path, out_mp4: Path) -> None:
                 "ffmpeg", "-y",
                 "-i", str(video),
                 "-vf", f"subtitles={srt}:force_style='{style}'",
-                "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
+                "-c:v", "libx264", "-preset", "faster", "-crf", "19",
+                "-pix_fmt", "yuv420p",
                 "-c:a", "copy",
+                "-movflags", "+faststart",
                 str(out_mp4),
             ],
             timeout=1800,
