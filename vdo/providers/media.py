@@ -75,7 +75,7 @@ def _rank(asset: dict) -> tuple:
     useful_motion = 0 if is_video and 4 <= duration <= 180 else 1
     size = int(asset.get("size") or 0)
     size_rank = 0 if size < 60_000_000 else 1
-    return (clear_license, motion_rank, useful_motion, resolution_rank, size_rank)
+    return (motion_rank, clear_license, useful_motion, resolution_rank, size_rank)
 
 
 async def download_assets(scenes: list[dict], output_dir: Path, workers: int = 8) -> list[dict]:
