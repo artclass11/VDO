@@ -20,9 +20,9 @@ def _grade_filters() -> str:
     if not SETTINGS.cinematic:
         return ""
     return (
-        ",eq=contrast=1.06:brightness=-0.018:saturation=1.06,"
-        "unsharp=luma_msize_x=5:luma_msize_y=5:luma_amount=0.25,"
-        "vignette=PI/5"
+        ",eq=contrast=1.045:brightness=-0.012:saturation=1.035,"
+        "unsharp=luma_msize_x=5:luma_msize_y=5:luma_amount=0.16,"
+        "noise=alls=1.2:allf=t+u,vignette=PI/7"
     )
 
 
@@ -119,7 +119,8 @@ def render_scene(
             "-r", str(SETTINGS.fps),
             "-c:v", "libx264", "-preset", "faster", "-crf", "19",
             "-pix_fmt", "yuv420p",
-            "-c:a", "aac", "-b:a", "160k",
+            "-af", "aresample=async=1:first_pts=0,highpass=f=55,lowpass=f=18000,loudnorm=I=-16:TP=-1.5:LRA=7",
+            "-c:a", "aac", "-b:a", "192k",
             "-movflags", "+faststart",
             str(out_mp4),
         ],
