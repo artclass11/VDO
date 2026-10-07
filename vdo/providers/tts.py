@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import asyncio
+import importlib.util
 import os
 import subprocess
 import sys
@@ -11,6 +12,9 @@ from typing import Iterable
 
 from vdo.config import SETTINGS
 from vdo.utils import run
+
+
+QWEN3_ENGLISH_SPEAKERS = {"Ryan", "Aiden"}
 
 
 def _piper_model_paths() -> tuple[Path, Path]:
@@ -49,8 +53,10 @@ def _postprocess_voice(wav: Path) -> None:
             "ffmpeg", "-y",
             "-i", str(wav),
             "-af",
-            "highpass=f=65,lowpass=f=17000,"
-            "acompressor=threshold=-19dB:ratio=2.0:attack=6:release=90:makeup=1.5,"
+            "highpass=f=55,lowpass=f=18000,"
+            "acompressor=threshold=-20dB:ratio=1.6:attack=18:release=180:"
+            "knee=2dB:makeup=1.0,"
+            "aresample=48000:resampler=soxr,"
             "loudnorm=I=-16:TP=-1.5:LRA=7",
             "-ar", "48000",
             "-c:a", "pcm_s24le",
@@ -63,17 +69,22 @@ def _postprocess_voice(wav: Path) -> None:
 
 def _scene_instruction(scene: dict) -> str:
     role = str(scene.get("story_role", "context"))
+    base = (
+        "Keep the exact same narrator identity and vocal character. "
+        "Natural human pacing, no announcer cadence, no artificial smile, "
+        "and no exaggerated performance. "
+    )
     if role == "hook":
-        return "Open with quiet confidence and human curiosity. Slightly more urgency, but never sensational."
+        return base + "Open with quiet confidence and genuine curiosity. Slightly more urgency, never sensational."
     if role in {"turning_point", "conflict"}:
-        return "Build restrained tension. Start grounded and become more emotionally charged only where the words demand it."
+        return base + "Build restrained tension. Let emotion rise only where the words genuinely require it."
     if role == "human":
-        return "Warm, empathetic and observant. Let the listener feel that a real person is telling this story."
+        return base + "Warm, empathetic and observant. Sound like a real person speaking to one thoughtful listener."
     if role in {"reflection", "resolution"}:
-        return "Soft, reflective and intimate. Leave small natural pauses between ideas."
+        return base + "Soft, reflective and intimate. Leave small natural pauses between ideas."
     if role == "evidence":
-        return "Precise, calm and trustworthy. Emphasize important numbers or facts naturally."
-    return SETTINGS.qwen3_instruct
+        return base + "Precise, calm and trustworthy. Emphasize facts naturally without sounding like a newsreader."
+    return base + SETTINGS.qwen3_instruct
 
 
 def _qwen3_model_name() -> str:
@@ -110,6 +121,12 @@ def _load_qwen3():
 
 def _synthesize_qwen3(scenes: Iterable[dict], out_dir: Path) -> list[Path]:
     import soundfile as sf
+
+    if SETTINGS.qwen3_lang == "English" and SETTINGS.qwen3_voice not in QWEN3_ENGLISH_SPEAKERS:
+        raise ValueError(
+            f"Unsupported English Qwen3 speaker '{SETTINGS.qwen3_voice}'. "
+            "Use Ryan or Aiden, or choose another supported language/speaker."
+        )
     scenes = list(scenes)
     out_dir.mkdir(parents=True, exist_ok=True)
     outputs = [out_dir / f"scene_{int(scene['id']):03d}.wav" for scene in scenes]
@@ -224,7 +241,7 @@ def _synthesize_piper(scenes: Iterable[dict], out_dir: Path) -> list[Path]:
 
 def _synthesize_batch(scenes: Iterable[dict], out_dir: Path) -> list[Path]:
     scenes = list(scenes)
-    provider = SETTINGS.tts_provider
+    provider = _auto_provider() if SETTINGS.tts_provider == "auto" else SETTINGS.tts_provider
 
     if provider == "qwen3-clone":
         return _synthesize_qwen3_clone(scenes, out_dir)
@@ -232,23 +249,52 @@ def _synthesize_batch(scenes: Iterable[dict], out_dir: Path) -> list[Path]:
     if provider == "qwen3":
         try:
             return _synthesize_qwen3(scenes, out_dir)
-        except ImportError as exc:
-            if "qwen_tts" not in str(exc).lower():
+        except Exception as exc:
+            if SETTINGS.tts_strict:
                 raise
+            print(f"[VDO] Qwen3 TTS unavailable ({exc}); falling back to Kokoro.")
+            provider = "kokoro"
 
-    if provider in {"qwen3", "kokoro"}:
+    if provider == "kokoro":
         try:
             return _synthesize_kokoro(scenes, out_dir)
-        except ImportError as exc:
-            if "kokoro" not in str(exc).lower():
-                raise
+        except Exception as exc:
+            if SETTINGS.tts_strict or not SETTINGS.allow_piper_fallback:
+                raise RuntimeError(
+                    "Kokoro TTS failed and Piper fallback is disabled. "
+                    "Set VDO_ALLOW_PIPER_FALLBACK=1 to allow the legacy fallback."
+                ) from exc
+            print(f"[VDO] Kokoro TTS unavailable ({exc}); falling back to Piper.")
+            provider = "piper"
 
-    if provider == "piper" or SETTINGS.allow_piper_fallback:
+    if provider == "piper":
         return _synthesize_piper(scenes, out_dir)
 
+    raise ValueError(f"Unknown TTS provider: {provider}")
+
+
+def _cuda_available() -> bool:
+    try:
+        import torch
+        return bool(torch.cuda.is_available())
+    except Exception:
+        return False
+
+
+def _module_available(name: str) -> bool:
+    return importlib.util.find_spec(name) is not None
+
+
+def _auto_provider() -> str:
+    if _cuda_available() and _module_available("qwen_tts"):
+        return "qwen3"
+    if _module_available("kokoro"):
+        return "kokoro"
+    if SETTINGS.allow_piper_fallback:
+        return "piper"
     raise RuntimeError(
-        "No high-quality TTS backend is available. Install qwen-tts or kokoro, "
-        "or explicitly set VDO_ALLOW_PIPER_FALLBACK=1 for the legacy Piper voice."
+        "No high-quality local TTS backend is available. Install qwen-tts for GPU use "
+        "or kokoro for CPU use. Piper is legacy and disabled by default."
     )
 
 
