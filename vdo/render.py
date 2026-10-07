@@ -46,6 +46,20 @@ def _title_overlay(title: str, opening: bool) -> str:
     )
 
 
+def _evidence_overlay(text: str, story_role: str) -> str:
+    if not text:
+        return ""
+    if story_role not in {"evidence", "turning_point", "human", "resolution"}:
+        return ""
+    safe = _escape_drawtext(text[:110])
+    return (
+        f",drawtext=text='{safe}':fontcolor=white:fontsize=30:"
+        "box=1:boxcolor=black@0.60:boxborderw=14:"
+        "x=78:y=98:"
+        "alpha='if(lt(t,0.4),t/0.4,if(gt(t,5),1,1))'"
+    )
+
+
 def render_scene(
     asset: str | None,
     wav: Path,
@@ -53,6 +67,8 @@ def render_scene(
     out_mp4: Path,
     *,
     opening: bool = False,
+    on_screen: str = "",
+    story_role: str = "context",
 ) -> None:
     out_mp4.parent.mkdir(parents=True, exist_ok=True)
     suffix = Path(asset).suffix.lower() if asset else ""
@@ -60,6 +76,7 @@ def render_scene(
         _grade_filters()
         + _cinematic_bars()
         + _title_overlay(title, opening)
+        + _evidence_overlay(on_screen, story_role)
     )
 
     if asset and suffix in {".mp4", ".webm", ".ogg"}:

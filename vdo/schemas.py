@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class Source(BaseModel):
@@ -18,6 +18,9 @@ class Scene(BaseModel):
     visual_query: str
     on_screen: str = ""
     seconds: float = 8.0
+    chapter: str = ""
+    story_role: str = "context"
+    shot_type: str = "b-roll"
 
 
 class Documentary(BaseModel):
@@ -26,6 +29,9 @@ class Documentary(BaseModel):
     logline: str
     tone: str = "cinematic documentary"
     estimated_minutes: int = 10
+    hook: str = ""
+    anchor_fact: str = ""
+    human_stakes: str = ""
     chapters: list[str] = Field(default_factory=list)
     scenes: list[Scene] = Field(default_factory=list)
     sources: list[Source] = Field(default_factory=list)
