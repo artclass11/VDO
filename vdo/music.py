@@ -19,7 +19,7 @@ def generate_ambient_bed(duration: float, output: Path) -> None:
         "+0.014*sin(2*PI*220*t)"
         "+0.008*sin(2*PI*329.63*t)"
         ":s=stereo,"
-        "tremolo=f=0.045:d=0.22,"
+        "tremolo=f=0.12:d=0.22,"
         "lowpass=f=1800,"
         "aecho=0.75:0.80:650|1100:0.20|0.14,"
         "highpass=f=55,"
