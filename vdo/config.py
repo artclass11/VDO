@@ -28,7 +28,7 @@ class Settings:
     cinematic: bool = os.getenv("VDO_CINEMATIC", "1") not in {"0", "false", "no"}
     show_scene_titles: bool = os.getenv("VDO_SHOW_SCENE_TITLES", "0") in {"1", "true", "yes"}
     transition_seconds: float = max(0.0, float(os.getenv("VDO_TRANSITION_SECONDS", "0.35")))
-    music_level: float = max(0.0, min(0.25, float(os.getenv("VDO_MUSIC_LEVEL", "0.11")))
+    music_level: float = max(0.0, min(0.25, float(os.getenv("VDO_MUSIC_LEVEL", "0.11"))))
 
 
 SETTINGS = Settings()
