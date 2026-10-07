@@ -1,0 +1,134 @@
+name: VDO Documentary Runner
+
+on:
+  workflow_dispatch:
+    inputs:
+      topic:
+        description: "One-line documentary topic"
+        required: true
+        default: "The future of clean energy"
+        type: string
+      minutes:
+        description: "Target duration in minutes"
+        required: true
+        default: "1"
+        type: string
+      runner:
+        description: "Execution backend"
+        required: true
+        default: "github"
+        type: choice
+        options:
+          - github
+          - self-hosted
+
+permissions:
+  contents: read
+
+jobs:
+  generate:
+    name: Generate documentary
+    runs-on: \${{ inputs.runner == 'self-hosted' && 'self-hosted' || 'ubuntu-latest' }}
+    timeout-minutes: 30
+    env:
+      VDO_OUTPUT_DIR: ./outputs
+      VDO_OLLAMA_URL: http://127.0.0.1:11434
+      VDO_OLLAMA_MODEL: qwen3:0.6b
+      VDO_PIPER_MODEL: en_US-lessac-medium
+      VDO_PIPER_DATA_DIR: ./models
+      VDO_WHISPER_MODEL: tiny
+      VDO_WHISPER_DEVICE: cpu
+      VDO_WHISPER_COMPUTE_TYPE: int8
+      VDO_WORKERS: 2
+      VDO_MEDIA_WORKERS: 4
+      VDO_FPS: 30
+      VDO_WIDTH: 1920
+      VDO_HEIGHT: 1080
+      VDO_REQUEST_TIMEOUT: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+
+      - name: Install system tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v ffmpeg >/dev/null || (sudo apt-get update && sudo apt-get install -y ffmpeg)
+          ffmpeg -version | head -n 1
+
+      - name: Install Python package
+        run: python -m pip install -e .
+
+      - name: Cache VDO models
+        uses: actions/cache@v4
+        with:
+          path: |
+            ./models
+            ~/.ollama
+          key: vdo-models-v1-\${{ runner.os }}-qwen3-0.6b-lessac-medium
+
+      - name: Install Ollama
+        shell: bash
+        run: |
+          set -euo pipefail
+          if ! command -v ollama >/dev/null 2>&1; then
+            curl -fsSL https://ollama.com/install.sh | sh
+          fi
+          ollama --version
+
+      - name: Start Ollama
+        shell: bash
+        run: |
+          set -euo pipefail
+          nohup ollama serve > /tmp/ollama.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fsS http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then
+              break
+            fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:11434/api/tags >/dev/null
+          ollama pull "\${VDO_OLLAMA_MODEL}"
+
+      - name: Download Piper voice
+        run: |
+          mkdir -p models
+          python -m piper.download_voices "\${VDO_PIPER_MODEL}" --data-dir ./models
+
+      - name: Generate
+        env:
+          TOPIC: \${{ inputs.topic }}
+          MINUTES: \${{ inputs.minutes }}
+        run: |
+          set -euo pipefail
+          python main.py "\${TOPIC}" --minutes "\${MINUTES}"
+
+      - name: Verify final video
+        shell: bash
+        run: |
+          set -euo pipefail
+          VIDEO="$(find outputs -type f -path '*/final/documentary.mp4' | head -n 1)"
+          test -n "\${VIDEO}"
+          test -s "\${VIDEO}"
+          echo "VIDEO=\${VIDEO}" >> "\${GITHUB_ENV}"
+          ffprobe -v error -show_entries format=duration,size -of default=noprint_wrappers=1 "\${VIDEO}"
+          printf '## VDO result\n\n- Topic: %s\n- Target minutes: %s\n- Video: %s\n' "\${TOPIC}" "\${MINUTES}" "\${VIDEO}" >> "\${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload documentary
+        uses: actions/upload-artifact@v4
+        with:
+          name: vdo-documentary
+          path: |
+            outputs/**/final/documentary.mp4
+            outputs/**/captions.srt
+            outputs/**/documentary.json
+            outputs/**/research.json
+            outputs/**/media/manifest.json
+          if-no-files-found: error
+          retention-days: 7
