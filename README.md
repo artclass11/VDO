@@ -42,10 +42,11 @@ media, audio and rendered scenes instead of starting again.
 - Wikimedia Commons for openly licensed archive imagery.
 - Python, Pydantic, HTTPX, FastAPI and pytest.
 
-Qwen3's open-weight models are licensed Apache 2.0. Piper's software is MIT;
-individual voice model cards must still be checked before redistribution. The
-Piper voice setup used by the example is published in the piper-voices repository.
-See each upstream project and asset record for exact licensing.
+Qwen3 open-weight models are Apache 2.0. The current piper-tts package is
+GPL-3.0-or-later, while the older archived Piper repository was MIT; VDO uses
+the current package for a simple cross-platform setup. Individual Piper voice
+models have their own model-card licensing and must be checked before
+redistribution. See each upstream project and asset record for exact terms.
 
 ## Fast setup
 
@@ -99,10 +100,10 @@ The expensive work is parallelized:
 
 - multiple visual searches/downloads run concurrently;
 - multiple Piper scene narrations run concurrently;
-- already completed artifacts are reused;
+- completed artifacts are reused;
 - image rendering is local and avoids waiting for hosted video-generation queues;
 - FFmpeg uses a fast H.264 preset;
-- subtitle transcription defaults to the small CPU-friendly base model.
+- subtitle transcription defaults to a CPU-friendly base model.
 
 For stronger subtitle accuracy, set VDO_WHISPER_MODEL=small.
 For NVIDIA GPUs, set VDO_WHISPER_DEVICE=cuda and choose an appropriate compute type.
@@ -113,7 +114,7 @@ long documentaries remain practical and restartable.
 
 ## API mode
 
-Install the API extras or use the main requirements, then:
+Run:
 
     uvicorn server:app --host 0.0.0.0 --port 8000
 
@@ -132,9 +133,8 @@ Body:
       "minutes": 15
     }
 
-This API is intentionally stateless at the HTTP layer; the filesystem is the
-durable job store. A queue such as Redis/RQ can be added later for multi-worker
-servers without changing the core pipeline.
+The filesystem is the durable job store. A queue such as Redis/RQ can be added
+later for multi-worker servers without changing the core pipeline.
 
 ## Asset licensing
 
@@ -146,17 +146,6 @@ license and attribution requirements before publishing the finished film.
 
 Do not automatically download or redistribute copyrighted footage from random
 video platforms.
-
-## Design principles
-
-1. One-line input.
-2. Local-first inference.
-3. Zero paid API dependency.
-4. Resumable jobs.
-5. Parallel I/O and narration.
-6. Explicit source and license metadata.
-7. Deterministic filesystem outputs.
-8. Easy provider replacement.
 
 ## Roadmap
 
@@ -175,11 +164,10 @@ video platforms.
 
 VDO application code is MIT licensed.
 
-Third-party models, voices, codecs, fonts and media can have different licenses.
-Their own licenses remain authoritative.
+Third-party models, TTS packages, codecs, fonts and media can have different
+licenses. Their own licenses remain authoritative.
 
 ## Status
 
-The repository is being developed as an open-source production foundation.
-The local pipeline is designed to keep working when a remote model or hosted
-generation service is unavailable.
+Open-source production foundation. The local pipeline is designed to keep
+working when a remote model or hosted generation service is unavailable.
