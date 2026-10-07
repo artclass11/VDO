@@ -34,6 +34,13 @@ jobs:
       VDO_OUTPUT_DIR: ./outputs
       VDO_OLLAMA_URL: http://127.0.0.1:11434
       VDO_OLLAMA_MODEL: qwen3:0.6b
+      VDO_TTS_PROVIDER: kokoro
+      VDO_KOKORO_VOICE: af_heart
+      VDO_KOKORO_LANG: a
+      VDO_CINEMATIC: "1"
+      VDO_SHOW_SCENE_TITLES: "0"
+      VDO_TRANSITION_SECONDS: "0.35"
+      VDO_MUSIC_LEVEL: "0.11"
       VDO_PIPER_MODEL: en_US-lessac-medium
       VDO_PIPER_DATA_DIR: ./models
       VDO_WHISPER_MODEL: tiny
@@ -63,7 +70,7 @@ jobs:
           ffmpeg -version | head -n 1
 
       - name: Install Python package
-        run: python -m pip install -e .
+        run: python -m pip install -e ".[kokoro]"
 
       - name: Cache VDO models
         uses: actions/cache@v4
@@ -71,7 +78,8 @@ jobs:
           path: |
             ./models
             ~/.ollama
-          key: vdo-models-v1-${{ runner.os }}-qwen3-0.6b-lessac-medium
+            ~/.cache/huggingface/hub
+          key: vdo-models-v2-${{ runner.os }}-qwen3-0.6b-kokoro
 
       - name: Install Ollama
         shell: bash
