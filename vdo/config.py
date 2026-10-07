@@ -10,8 +10,13 @@ class Settings:
     root: Path = Path(os.getenv("VDO_OUTPUT_DIR", "./outputs"))
     ollama_url: str = os.getenv("VDO_OLLAMA_URL", "http://127.0.0.1:11434")
     ollama_model: str = os.getenv("VDO_OLLAMA_MODEL", "qwen3:8b")
+
+    tts_provider: str = os.getenv("VDO_TTS_PROVIDER", "kokoro").lower()
     piper_model: str = os.getenv("VDO_PIPER_MODEL", "en_US-lessac-medium")
     piper_data_dir: str = os.getenv("VDO_PIPER_DATA_DIR", "./models")
+    kokoro_voice: str = os.getenv("VDO_KOKORO_VOICE", "af_heart")
+    kokoro_lang: str = os.getenv("VDO_KOKORO_LANG", "a")
+
     fps: int = int(os.getenv("VDO_FPS", "30"))
     width: int = int(os.getenv("VDO_WIDTH", "1920"))
     height: int = int(os.getenv("VDO_HEIGHT", "1080"))
@@ -19,6 +24,11 @@ class Settings:
     media_workers: int = max(2, int(os.getenv("VDO_MEDIA_WORKERS", "8")))
     whisper_model: str = os.getenv("VDO_WHISPER_MODEL", "base")
     request_timeout: float = float(os.getenv("VDO_REQUEST_TIMEOUT", "45"))
+
+    cinematic: bool = os.getenv("VDO_CINEMATIC", "1") not in {"0", "false", "no"}
+    show_scene_titles: bool = os.getenv("VDO_SHOW_SCENE_TITLES", "0") in {"1", "true", "yes"}
+    transition_seconds: float = max(0.0, float(os.getenv("VDO_TRANSITION_SECONDS", "0.35")))
+    music_level: float = max(0.0, min(0.25, float(os.getenv("VDO_MUSIC_LEVEL", "0.11"))))
 
 
 SETTINGS = Settings()

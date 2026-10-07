@@ -16,6 +16,9 @@ from vdo.subtitles import make_srt
 from vdo.utils import run, write_json
 
 
+PIPELINE_VERSION = "2.0-cinematic-natural-voice"
+
+
 def _job_dir(topic: str, root: Path) -> Path:
     import hashlib
     slug = hashlib.sha1(topic.strip().lower().encode()).hexdigest()[:16]
@@ -30,6 +33,48 @@ def _normalize_timing(doc: Documentary, minutes: int) -> None:
         scene.seconds = max(4.0, min(20.0, scene.seconds * scale))
 
 
+def _reset_if_needed(job_dir: Path) -> None:
+    marker = job_dir / "pipeline.version"
+    old = marker.read_text(encoding="utf-8").strip() if marker.exists() else ""
+    if old == PIPELINE_VERSION:
+        return
+
+    for pattern in (
+        "scenes/*.mp4",
+        "final/*.mp4",
+        "audio/*.wav",
+        "media/manifest.json",
+        "media/*.json",
+        "media/*.jpg",
+        "media/*.jpeg",
+        "media/*.png",
+        "media/*.webp",
+        "media/*.mp4",
+        "media/*.webm",
+        "media/*.ogg",
+        "narration.wav",
+        "captions.srt",
+        "ambient_music.m4a",
+    ):
+        for path in job_dir.glob(pattern):
+            path.unlink(missing_ok=True)
+
+    marker.write_text(PIPELINE_VERSION, encoding="utf-8")
+
+
+def _duration(path: Path) -> float:
+    result = run(
+        [
+            "ffprobe", "-v", "error",
+            "-show_entries", "format=duration",
+            "-of", "default=noprint_wrappers=1:nokey=1",
+            str(path),
+        ],
+        timeout=60,
+    )
+    return float(result.stdout.strip())
+
+
 class DocumentaryPipeline:
     def __init__(self, topic: str, minutes: int = 10, output_dir: Path | None = None) -> None:
         self.topic = topic.strip()
@@ -40,6 +85,8 @@ class DocumentaryPipeline:
         self.job_dir.mkdir(parents=True, exist_ok=True)
 
     async def run(self) -> Path:
+        _reset_if_needed(self.job_dir)
+
         plan_path = self.job_dir / "documentary.json"
         research_path = self.job_dir / "research.json"
         media_dir = self.job_dir / "media"
@@ -78,11 +125,11 @@ class DocumentaryPipeline:
 
         audio_files = await synthesize_scenes(scenes, audio_dir, workers=1)
 
-        scene_files: list[Path] = [scenes_dir / f"scene_{int(s['id']):03d}.mp4" for s in scenes]
+        scene_files = [scenes_dir / f"scene_{int(s['id']):03d}.mp4" for s in scenes]
         scenes_dir.mkdir(parents=True, exist_ok=True)
         semaphore = asyncio.Semaphore(SETTINGS.workers)
 
-        async def render_one(scene: dict, audio: Path, out: Path) -> Path:
+        async def render_one(index: int, scene: dict, audio: Path, out: Path) -> Path:
             if out.exists() and out.stat().st_size > 1000:
                 return out
             asset = next(
@@ -90,11 +137,21 @@ class DocumentaryPipeline:
                 {},
             )
             async with semaphore:
-                await asyncio.to_thread(render_scene, asset.get("path"), audio, scene["title"], out)
+                await asyncio.to_thread(
+                    render_scene,
+                    asset.get("path"),
+                    audio,
+                    scene["title"],
+                    out,
+                    opening=index == 0,
+                )
             return out
 
         await asyncio.gather(
-            *[render_one(scene, audio, out) for scene, audio, out in zip(scenes, audio_files, scene_files)]
+            *[
+                render_one(index, scene, audio, out)
+                for index, (scene, audio, out) in enumerate(zip(scenes, audio_files, scene_files))
+            ]
         )
 
         assembled = final_dir / "documentary_clean.mp4"
@@ -109,7 +166,13 @@ class DocumentaryPipeline:
                 encoding="utf-8",
             )
             run(
-                ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(concat_audio), "-c:a", "pcm_s16le", str(narration)],
+                [
+                    "ffmpeg", "-y",
+                    "-f", "concat", "-safe", "0",
+                    "-i", str(concat_audio),
+                    "-c:a", "pcm_s16le",
+                    str(narration),
+                ],
                 timeout=900,
             )
 
@@ -119,7 +182,7 @@ class DocumentaryPipeline:
 
         scored = final_dir / "documentary_scored.mp4"
         if not scored.exists():
-            duration = sum(float(s["seconds"]) for s in scenes)
+            duration = _duration(assembled)
             music = self.job_dir / "ambient_music.m4a"
             await asyncio.to_thread(generate_ambient_bed, duration, music)
             await asyncio.to_thread(mix_music, assembled, music, scored)
@@ -131,9 +194,13 @@ class DocumentaryPipeline:
         write_json(
             self.job_dir / "job.json",
             {
+                "pipeline_version": PIPELINE_VERSION,
                 "topic": self.topic,
                 "minutes_target": self.minutes,
                 "title": doc.title,
+                "tts_provider": SETTINGS.tts_provider,
+                "cinematic": SETTINGS.cinematic,
+                "transition_seconds": SETTINGS.transition_seconds,
                 "output": str(final.resolve()),
                 "research_file": str(research_path.resolve()),
                 "media_manifest": str(manifest_path.resolve()),
