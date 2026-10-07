@@ -4,44 +4,62 @@ import asyncio
 import subprocess
 import sys
 from pathlib import Path
+from typing import Iterable
 
 from vdo.config import SETTINGS
 
 
-def _synthesize(text: str, out_wav: Path) -> None:
-    out_wav.parent.mkdir(parents=True, exist_ok=True)
-    proc = subprocess.run(
+def _model_paths() -> tuple[Path, Path]:
+    root = Path(SETTINGS.piper_data_dir)
+    return root / f"{SETTINGS.piper_model}.onnx", root / f"{SETTINGS.piper_model}.onnx.json"
+
+
+def ensure_voice() -> tuple[Path, Path]:
+    model_path, config_path = _model_paths()
+    if model_path.exists() and config_path.exists():
+        return model_path, config_path
+    Path(SETTINGS.piper_data_dir).mkdir(parents=True, exist_ok=True)
+    subprocess.run(
         [
             sys.executable,
             "-m",
-            "piper",
-            "-m",
+            "piper.download_voices",
             SETTINGS.piper_model,
             "--data-dir",
             SETTINGS.piper_data_dir,
-            "-f",
-            str(out_wav),
-            "--",
-            text,
         ],
+        check=True,
         text=True,
         capture_output=True,
-        timeout=300,
+        timeout=600,
     )
-    if proc.returncode:
-        raise RuntimeError(proc.stderr[-2000:] or "Piper TTS failed")
+    if not model_path.exists() or not config_path.exists():
+        raise RuntimeError(f"Piper voice download did not create {model_path}")
+    return model_path, config_path
 
 
-async def synthesize_scenes(scenes: list[dict], out_dir: Path, workers: int = 3) -> list[Path]:
+def _synthesize_batch(scenes: Iterable[dict], out_dir: Path) -> list[Path]:
+    from piper import PiperVoice
+    import wave
+
+    model_path, config_path = ensure_voice()
+    voice = PiperVoice.load(model_path=str(model_path), config_path=str(config_path))
+    outputs: list[Path] = []
     out_dir.mkdir(parents=True, exist_ok=True)
-    sem = asyncio.Semaphore(workers)
 
-    async def one(scene: dict) -> Path:
+    for scene in scenes:
         out = out_dir / f"scene_{int(scene['id']):03d}.wav"
+        outputs.append(out)
         if out.exists() and out.stat().st_size > 1000:
-            return out
-        async with sem:
-            await asyncio.to_thread(_synthesize, scene["narration"], out)
-        return out
+            continue
+        with wave.open(str(out), "wb") as wav_file:
+            voice.synthesize(scene["narration"], wav_file)
 
-    return await asyncio.gather(*[one(scene) for scene in scenes])
+    return outputs
+
+
+async def synthesize_scenes(scenes: list[dict], out_dir: Path, workers: int = 1) -> list[Path]:
+    # One loaded PiperVoice is intentionally reused for every scene. The standard
+    # CLI reloads the voice per process; keeping one model resident is substantially
+    # faster for long documentaries.
+    return await asyncio.to_thread(_synthesize_batch, scenes, out_dir)

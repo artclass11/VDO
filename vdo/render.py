@@ -16,11 +16,22 @@ def _escape_drawtext(value: str) -> str:
     )
 
 
-def render_scene(image: str | None, wav: Path, title: str, out_mp4: Path) -> None:
+def render_scene(asset: str | None, wav: Path, title: str, out_mp4: Path) -> None:
     out_mp4.parent.mkdir(parents=True, exist_ok=True)
     safe_title = _escape_drawtext(title[:90])
+    suffix = Path(asset).suffix.lower() if asset else ""
 
-    if image:
+    if asset and suffix in {".mp4", ".webm", ".ogg"}:
+        vf = (
+            f"scale={SETTINGS.width}:{SETTINGS.height}:force_original_aspect_ratio=increase,"
+            f"crop={SETTINGS.width}:{SETTINGS.height},"
+            "fps=30,"
+            "fade=t=in:st=0:d=0.25,"
+            f"drawtext=text='{safe_title}':fontcolor=white:fontsize=42:"
+            "box=1:boxcolor=black@0.42:boxborderw=18:x=70:y=h-150"
+        )
+        inputs = ["-stream_loop", "-1", "-i", asset]
+    elif asset:
         vf = (
             f"scale={SETTINGS.width}:{SETTINGS.height}:force_original_aspect_ratio=increase,"
             f"crop={SETTINGS.width}:{SETTINGS.height},"
@@ -30,7 +41,7 @@ def render_scene(image: str | None, wav: Path, title: str, out_mp4: Path) -> Non
             f"drawtext=text='{safe_title}':fontcolor=white:fontsize=44:"
             "box=1:boxcolor=black@0.42:boxborderw=18:x=70:y=h-150"
         )
-        inputs = ["-loop", "1", "-i", image]
+        inputs = ["-loop", "1", "-i", asset]
     else:
         vf = (
             f"drawtext=text='{safe_title}':fontcolor=white:fontsize=54:"
@@ -46,12 +57,14 @@ def render_scene(image: str | None, wav: Path, title: str, out_mp4: Path) -> Non
             "ffmpeg", "-y",
             *inputs,
             "-i", str(wav),
+            "-map", "0:v:0",
+            "-map", "1:a:0",
+            "-shortest",
             "-vf", vf,
             "-r", str(SETTINGS.fps),
             "-c:v", "libx264", "-preset", "veryfast", "-crf", "20",
             "-pix_fmt", "yuv420p",
             "-c:a", "aac", "-b:a", "160k",
-            "-shortest",
             str(out_mp4),
         ],
         timeout=900,
@@ -65,11 +78,24 @@ def concatenate(scene_files: list[Path], out_mp4: Path) -> None:
         encoding="utf-8",
     )
     run(
+        ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(concat_file), "-c", "copy", str(out_mp4)],
+        timeout=1800,
+    )
+
+
+def mix_music(video: Path, music: Path, out_mp4: Path) -> None:
+    run(
         [
             "ffmpeg", "-y",
-            "-f", "concat", "-safe", "0",
-            "-i", str(concat_file),
-            "-c", "copy",
+            "-i", str(video),
+            "-i", str(music),
+            "-filter_complex",
+            "[1:a]volume=0.08[m];[0:a][m]amix=inputs=2:duration=first:dropout_transition=3[a]",
+            "-map", "0:v:0",
+            "-map", "[a]",
+            "-c:v", "copy",
+            "-c:a", "aac",
+            "-b:a", "192k",
             str(out_mp4),
         ],
         timeout=1800,

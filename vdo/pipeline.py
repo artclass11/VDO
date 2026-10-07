@@ -5,11 +5,12 @@ import json
 from pathlib import Path
 
 from vdo.config import SETTINGS
+from vdo.music import generate_ambient_bed
 from vdo.providers.llm import generate_documentary
 from vdo.providers.media import download_assets, save_manifest
 from vdo.providers.research import research_topic
 from vdo.providers.tts import synthesize_scenes
-from vdo.render import burn_subtitles, concatenate, render_scene
+from vdo.render import burn_subtitles, concatenate, mix_music, render_scene
 from vdo.schemas import Documentary, Source
 from vdo.subtitles import make_srt
 from vdo.utils import run, write_json
@@ -75,28 +76,26 @@ class DocumentaryPipeline:
             assets = await download_assets(scenes, media_dir, SETTINGS.media_workers)
             save_manifest(manifest_path, assets)
 
-        audio_files = await synthesize_scenes(
-            scenes,
-            audio_dir,
-            workers=min(3, SETTINGS.workers),
-        )
+        audio_files = await synthesize_scenes(scenes, audio_dir, workers=1)
 
-        scene_files: list[Path] = []
-        for scene, audio in zip(scenes, audio_files):
-            out = scenes_dir / f"scene_{int(scene['id']):03d}.mp4"
-            if not out.exists():
-                asset = next(
-                    (x for x in assets if int(x["scene_id"]) == int(scene["id"])),
-                    {},
-                )
-                await asyncio.to_thread(
-                    render_scene,
-                    asset.get("path"),
-                    audio,
-                    scene["title"],
-                    out,
-                )
-            scene_files.append(out)
+        scene_files: list[Path] = [scenes_dir / f"scene_{int(s['id']):03d}.mp4" for s in scenes]
+        scenes_dir.mkdir(parents=True, exist_ok=True)
+        semaphore = asyncio.Semaphore(SETTINGS.workers)
+
+        async def render_one(scene: dict, audio: Path, out: Path) -> Path:
+            if out.exists() and out.stat().st_size > 1000:
+                return out
+            asset = next(
+                (x for x in assets if int(x["scene_id"]) == int(scene["id"])),
+                {},
+            )
+            async with semaphore:
+                await asyncio.to_thread(render_scene, asset.get("path"), audio, scene["title"], out)
+            return out
+
+        await asyncio.gather(
+            *[render_one(scene, audio, out) for scene, audio, out in zip(scenes, audio_files, scene_files)]
+        )
 
         assembled = final_dir / "documentary_clean.mp4"
         if not assembled.exists():
@@ -110,28 +109,24 @@ class DocumentaryPipeline:
                 encoding="utf-8",
             )
             run(
-                [
-                    "ffmpeg", "-y",
-                    "-f", "concat", "-safe", "0",
-                    "-i", str(concat_audio),
-                    "-c:a", "pcm_s16le",
-                    str(narration),
-                ],
+                ["ffmpeg", "-y", "-f", "concat", "-safe", "0", "-i", str(concat_audio), "-c:a", "pcm_s16le", str(narration)],
                 timeout=900,
             )
 
         srt = self.job_dir / "captions.srt"
         if not srt.exists():
-            await asyncio.to_thread(
-                make_srt,
-                narration,
-                srt,
-                SETTINGS.whisper_model,
-            )
+            await asyncio.to_thread(make_srt, narration, srt, SETTINGS.whisper_model)
+
+        scored = final_dir / "documentary_scored.mp4"
+        if not scored.exists():
+            duration = sum(float(s["seconds"]) for s in scenes)
+            music = self.job_dir / "ambient_music.m4a"
+            await asyncio.to_thread(generate_ambient_bed, duration, music)
+            await asyncio.to_thread(mix_music, assembled, music, scored)
 
         final = final_dir / "documentary.mp4"
         if not final.exists():
-            await asyncio.to_thread(burn_subtitles, assembled, srt, final)
+            await asyncio.to_thread(burn_subtitles, scored, srt, final)
 
         write_json(
             self.job_dir / "job.json",
