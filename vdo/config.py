@@ -56,12 +56,16 @@ class Settings:
     real_footage_first: bool = _env_bool("VDO_REAL_FOOTAGE_FIRST", True)
     show_scene_titles: bool = _env_bool("VDO_SHOW_SCENE_TITLES", False)
     transition_seconds: float = max(0.0, float(os.getenv("VDO_TRANSITION_SECONDS", "0.45")))
-    music_level: float = max(0.0, min(0.25, float(os.getenv("VDO_MUSIC_LEVEL", "0.075")))
+    music_level: float = max(0.0, min(0.25, float(os.getenv("VDO_MUSIC_LEVEL", "0.075"))))
     video_crf: int = int(os.getenv("VDO_VIDEO_CRF", "18"))
     x264_preset: str = os.getenv("VDO_X264_PRESET", "medium")
     audio_bitrate: str = os.getenv("VDO_AUDIO_BITRATE", "256k")
-    grain: float = max(0.0, min(3.0, float(os.getenv("VDO_CINEMATIC_GRAIN", "0.30")))
-    image_motion: float = max(0.00005, min(0.001, float(os.getenv("VDO_IMAGE_MOTION", "0.00022")))
+    grain: float = max(
+        0.0, min(3.0, float(os.getenv("VDO_CINEMATIC_GRAIN", "0.30")))
+    )
+    image_motion: float = max(
+        0.00005, min(0.001, float(os.getenv("VDO_IMAGE_MOTION", "0.00022")))
+    )
 
 
 SETTINGS = Settings()
