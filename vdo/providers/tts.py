@@ -1,21 +1,29 @@
 from __future__ import annotations
 
 import asyncio
-import os
 import subprocess
+import sys
 from pathlib import Path
 
 from vdo.config import SETTINGS
 
 
 def _synthesize(text: str, out_wav: Path) -> None:
-    model = SETTINGS.piper_model
-    if not model:
-        raise RuntimeError("Set VDO_PIPER_MODEL to a local Piper .onnx voice model.")
     out_wav.parent.mkdir(parents=True, exist_ok=True)
     proc = subprocess.run(
-        [SETTINGS.piper_bin, "--model", model, "--output_file", str(out_wav)],
-        input=text,
+        [
+            sys.executable,
+            "-m",
+            "piper",
+            "-m",
+            SETTINGS.piper_model,
+            "--data-dir",
+            SETTINGS.piper_data_dir,
+            "-f",
+            str(out_wav),
+            "--",
+            text,
+        ],
         text=True,
         capture_output=True,
         timeout=300,
