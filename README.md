@@ -1,6 +1,6 @@
 # VDO — Open Documentary Maker
 
-VDO turns one line of text into a complete documentary.
+VDO turns one line of text into a complete documentary — with a deterministic production intro mode for the project itself.
 
 Example:
 
@@ -38,7 +38,7 @@ media, audio and rendered scenes instead of starting again.
 - Qwen3 + Ollama for local documentary planning and narration writing.
 - Qwen3-TTS for natural, instruction-controlled documentary narration.
 - Kokoro for a lightweight natural-voice fallback.
-- Piper remains available only as an explicit legacy fallback.
+- Piper remains available only as an explicit legacy fallback. The production default is Kokoro on CPU and Qwen3-TTS when a compatible GPU is available.
 - faster-whisper for subtitle transcription.
 - FFmpeg for rendering, encoding and muxing.
 - Wikimedia Commons for openly licensed archive imagery.
@@ -162,6 +162,22 @@ VDO's planner is designed around documentary storytelling rather than slide-deck
 - automatic chapters.txt output for YouTube chapter markers.
 
 The engine does not imitate a specific filmmaker or copy a reference film. It uses general documentary techniques: authentic footage, clear narrative beats, measured narration, chapter structure, emotional transitions and factual grounding.
+
+
+## Production intro
+
+Render the VDO project intro without a hosted video API:
+
+    pip install -e ".[kokoro]"
+    python main.py --intro --intro-seconds 40
+
+The intro uses the local Kokoro open-weight narrator, Wikimedia Commons archive media, FFmpeg editing/mixing, and faster-whisper captions. The render is deterministic and runs on your own machine or runner; it does not consume hosted video-generation credits.
+
+A production quality gate is available:
+
+    python scripts/quality_check.py outputs/vdo-intro/final/vdo_intro.mp4
+
+For a repeatable GitHub Actions build, open **Actions → VDO Production Intro Quality**. The workflow stores the MP4 plus its subtitles, media manifest and quality report as an artifact.
 
 ## API mode
 

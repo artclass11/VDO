@@ -16,7 +16,7 @@ from vdo.subtitles import make_srt
 from vdo.utils import run, write_json
 
 
-PIPELINE_VERSION = "5.0-natural-voice-cinematic-realism"
+PIPELINE_VERSION = "6.0-production-quality"
 
 
 def _job_dir(topic: str, root: Path) -> Path:
@@ -109,6 +109,7 @@ class DocumentaryPipeline:
                     url=item["url"],
                     publisher=item.get("publisher", ""),
                     license=item.get("license", ""),
+                    author=item.get("author", ""),
                 )
                 for item in research
                 if item.get("url")

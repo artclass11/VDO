@@ -15,7 +15,7 @@ Use:
 5. Select **github** as the runner.
 6. Download the **vdo-documentary** artifact when the job finishes.
 
-The GitHub runner uses the small qwen3:0.6b model to keep the full pipeline practical on the hosted CPU runner. The same pipeline still performs research, script planning, Piper narration, Wikimedia media retrieval, FFmpeg rendering, subtitles and ambient music.
+The production intro workflow is intentionally deterministic and CPU-friendly: Kokoro narration, Wikimedia Commons media, FFmpeg rendering, faster-whisper captions and a local ambient bed. Full documentary mode can still use Ollama/Qwen3 on a larger self-hosted runner.
 
 ## 2. Self-hosted open-source mode
 
@@ -43,3 +43,12 @@ The software stack remains open-source/local:
 GitHub-hosted runners are ephemeral, so model and media caches are restored only when the GitHub cache is available. Self-hosted runners can keep models and media locally between jobs.
 
 For public distribution, verify the license of every Wikimedia Commons asset and every voice model used in the final documentary.
+
+
+## Production intro quality build
+
+The repository includes **VDO Production Intro Quality** at `.github/workflows/vdo-production-intro.yml`. It is a repeatable benchmark for the product demo, not a hosted AI-video dependency.
+
+The workflow installs the open local stack, renders `python main.py --intro`, verifies the resulting media with `scripts/quality_check.py`, and uploads the MP4 plus the evidence files.
+
+This makes the intro reproducible without a per-video hosted generation quota: render locally or on an eligible public/self-hosted GitHub Actions runner.
