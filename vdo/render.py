@@ -20,9 +20,9 @@ def _grade_filters() -> str:
     if not SETTINGS.cinematic:
         return ""
     return (
-        ",eq=contrast=1.045:brightness=-0.012:saturation=1.035,"
-        "unsharp=luma_msize_x=5:luma_msize_y=5:luma_amount=0.16,"
-        "noise=alls=1.2:allf=t+u,vignette=PI/7"
+        ",eq=contrast=1.028:brightness=-0.008:saturation=0.985,"
+        "unsharp=luma_msize_x=5:luma_msize_y=5:luma_amount=0.12,"
+        f"noise=alls={SETTINGS.grain:.2f}:allf=t+u,vignette=PI/9"
     )
 
 
@@ -81,18 +81,18 @@ def render_scene(
 
     if asset and suffix in {".mp4", ".webm", ".ogg"}:
         vf = (
-            f"scale={SETTINGS.width}:{SETTINGS.height}:force_original_aspect_ratio=increase,"
-            f"crop={SETTINGS.width}:{SETTINGS.height},"
-            f"fps={SETTINGS.fps},"
+            f"scale={SETTINGS.width}:{SETTINGS.height}:force_original_aspect_ratio=increase:flags=lanczos,"
+            f"crop={SETTINGS.width}:{SETTINGS.height}:(in_w-out_w)/2:(in_h-out_h)/2,"
+            f"fps={SETTINGS.fps},setsar=1,"
             "setpts=PTS-STARTPTS"
             + common
         )
         inputs = ["-stream_loop", "-1", "-i", asset]
     elif asset:
         vf = (
-            f"scale={SETTINGS.width}:{SETTINGS.height}:force_original_aspect_ratio=increase,"
-            f"crop={SETTINGS.width}:{SETTINGS.height},"
-            f"zoompan=z='min(zoom+0.00035,1.05)':d=1:"
+            f"scale={SETTINGS.width}:{SETTINGS.height}:force_original_aspect_ratio=increase:flags=lanczos,"
+            f"crop={SETTINGS.width}:{SETTINGS.height}:(in_w-out_w)/2:(in_h-out_h)/2,"
+            f"zoompan=z='min(max(zoom,1)+0.00022,1.055)':d=1:"
             f"s={SETTINGS.width}x{SETTINGS.height}:fps={SETTINGS.fps},"
             "setpts=PTS-STARTPTS"
             + common
@@ -120,7 +120,7 @@ def render_scene(
             "-c:v", "libx264", "-preset", "faster", "-crf", "19",
             "-pix_fmt", "yuv420p",
             "-af", "aresample=async=1:first_pts=0,highpass=f=55,lowpass=f=18000,loudnorm=I=-16:TP=-1.5:LRA=7",
-            "-c:a", "aac", "-b:a", "192k",
+            "-c:a", "aac", "-b:a", SETTINGS.audio_bitrate,
             "-movflags", "+faststart",
             str(out_mp4),
         ],
@@ -203,7 +203,7 @@ def concatenate(scene_files: list[Path], out_mp4: Path) -> None:
             "-map", f"[{audio_label}]",
             "-c:v", "libx264", "-preset", "faster", "-crf", "19",
             "-pix_fmt", "yuv420p",
-            "-c:a", "aac", "-b:a", "160k",
+            "-c:a", "aac", "-b:a", SETTINGS.audio_bitrate,
             "-movflags", "+faststart",
             str(out_mp4),
         ],

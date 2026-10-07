@@ -16,7 +16,7 @@ from vdo.subtitles import make_srt
 from vdo.utils import run, write_json
 
 
-PIPELINE_VERSION = "4.0-human-narration-real-footage-engine"
+PIPELINE_VERSION = "5.0-natural-voice-cinematic-realism"
 
 
 def _job_dir(topic: str, root: Path) -> Path:
@@ -122,7 +122,12 @@ class DocumentaryPipeline:
         if manifest_path.exists():
             assets = json.loads(manifest_path.read_text(encoding="utf-8"))
         else:
-            assets = await download_assets(scenes, media_dir, SETTINGS.media_workers)
+            assets = await download_assets(
+                scenes,
+                media_dir,
+                SETTINGS.media_workers,
+                real_footage_first=SETTINGS.real_footage_first,
+            )
             save_manifest(manifest_path, assets)
 
         audio_files = await synthesize_scenes(scenes, audio_dir, workers=1)
@@ -217,6 +222,9 @@ class DocumentaryPipeline:
                 "title": doc.title,
                 "tts_provider": SETTINGS.tts_provider,
                 "cinematic": SETTINGS.cinematic,
+                "real_footage_first": SETTINGS.real_footage_first,
+                "video_crf": SETTINGS.video_crf,
+                "x264_preset": SETTINGS.x264_preset,
                 "transition_seconds": SETTINGS.transition_seconds,
                 "output": str(final.resolve()),
                 "chapters_file": str(chapters_path.resolve()),

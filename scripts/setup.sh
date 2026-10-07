@@ -10,9 +10,10 @@ else
   echo "Ollama is not installed. Install Ollama, then run: ollama pull qwen3:8b"
 fi
 
-python3 -m piper.download_voices en_US-lessac-medium --data-dir ./models
 
 echo
 echo "Setup complete."
+echo "Default TTS: NVIDIA/CUDA -> Qwen3-TTS 1.7B; CPU-only -> Kokoro."
+echo "Piper is legacy and disabled unless VDO_ALLOW_PIPER_FALLBACK=1."
 echo "Generate a documentary with:"
 echo "  python main.py "The history of the global gold market" --minutes 10"
