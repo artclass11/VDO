@@ -3,6 +3,7 @@ from __future__ import annotations
 import asyncio
 import importlib.util
 import os
+import re
 import subprocess
 import sys
 import wave
@@ -46,6 +47,14 @@ def ensure_voice() -> tuple[Path, Path]:
     return model_path, config_path
 
 
+def _clean_for_tts(text: str) -> str:
+    text = re.sub(r"\s+", " ", text or "").strip()
+    text = text.replace("—", ", ").replace("–", ", ")
+    text = text.replace(";", ". ")
+    text = re.sub(r"\.{3,}", "...", text)
+    return text
+
+
 def _postprocess_voice(wav: Path) -> None:
     processed = wav.with_name(wav.stem + ".processed.wav")
     run(
@@ -53,8 +62,10 @@ def _postprocess_voice(wav: Path) -> None:
             "ffmpeg", "-y",
             "-i", str(wav),
             "-af",
-            "highpass=f=55,lowpass=f=18000,"
-            "acompressor=threshold=-20dB:ratio=1.6:attack=18:release=180:"
+            "highpass=f=65,lowpass=f=17000,"
+            "equalizer=f=180:t=q:w=1.0:g=-1.2,"
+            "equalizer=f=3200:t=q:w=1.1:g=1.0,"
+            "acompressor=threshold=-21dB:ratio=1.55:attack=18:release=220:"
             "knee=2dB:makeup=1.0,"
             "aresample=48000:resampler=soxr,"
             "loudnorm=I=-16:TP=-1.5:LRA=7",
@@ -135,7 +146,7 @@ def _synthesize_qwen3(scenes: Iterable[dict], out_dir: Path) -> list[Path]:
         return outputs
 
     model, model_name = _load_qwen3()
-    texts = [str(scene["narration"]).strip() for scene, _ in pending]
+    texts = [_clean_for_tts(str(scene["narration"])) for scene, _ in pending]
     languages = [SETTINGS.qwen3_lang for _ in pending]
     speakers = [SETTINGS.qwen3_voice for _ in pending]
 
@@ -213,7 +224,7 @@ def _synthesize_kokoro(scenes: Iterable[dict], out_dir: Path) -> list[Path]:
         if out.exists() and out.stat().st_size > 1000:
             continue
         chunks = []
-        for _, _, audio in pipeline(scene["narration"], voice=SETTINGS.kokoro_voice, speed=0.96):
+        for _, _, audio in pipeline(_clean_for_tts(str(scene["narration"])), voice=SETTINGS.kokoro_voice, speed=SETTINGS.kokoro_speed):
             chunks.append(audio)
         if not chunks:
             raise RuntimeError(f"Kokoro produced no audio for scene {scene['id']}")
@@ -234,7 +245,7 @@ def _synthesize_piper(scenes: Iterable[dict], out_dir: Path) -> list[Path]:
         if out.exists() and out.stat().st_size > 1000:
             continue
         with wave.open(str(out), "wb") as wav_file:
-            voice.synthesize(scene["narration"], wav_file)
+            voice.synthesize(_clean_for_tts(str(scene["narration"])), wav_file)
         _postprocess_voice(out)
     return outputs
 
