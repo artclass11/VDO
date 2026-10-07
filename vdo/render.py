@@ -28,8 +28,8 @@ def _grade_filters() -> str:
 
 def _cinematic_bars() -> str:
     return (
-        ",drawbox=x=0:y=0:w=iw:h=30:color=black@0.72:t=fill"
-        ",drawbox=x=0:y=ih-30:w=iw:h=30:color=black@0.72:t=fill"
+        ",drawbox=x=0:y=0:w=iw:h=22:color=black@0.78:t=fill"
+        ",drawbox=x=0:y=ih-22:w=iw:h=22:color=black@0.78:t=fill"
     )
 
 
@@ -37,12 +37,13 @@ def _title_overlay(title: str, opening: bool) -> str:
     if not title or (not SETTINGS.show_scene_titles and not opening):
         return ""
     safe = _escape_drawtext(title[:90])
-    enable = ":enable='between(t,0,4)'" if opening else ""
+    enable = ":enable='between(t,0,4.5)'" if opening else ""
+    alpha = ":alpha='if(lt(t,0.7),t/0.7,1)'"
     return (
-        f",drawtext=text='{safe}':fontcolor=white:fontsize=52:"
-        "box=1:boxcolor=black@0.32:boxborderw=18:"
-        "x=76:y=h-165"
-        + enable
+        f",drawtext=text='{safe}':fontcolor=white@0.96:fontsize=46:"
+        "box=1:boxcolor=black@0.34:boxborderw=16:"
+        "x=78:y=h-156"
+        + alpha + enable
     )
 
 
@@ -51,12 +52,12 @@ def _evidence_overlay(text: str, story_role: str) -> str:
         return ""
     if story_role not in {"evidence", "turning_point", "human", "resolution"}:
         return ""
-    safe = _escape_drawtext(text[:110])
+    safe = _escape_drawtext(text[:95])
     return (
-        f",drawtext=text='{safe}':fontcolor=white:fontsize=30:"
-        "box=1:boxcolor=black@0.60:boxborderw=14:"
-        "x=78:y=98:"
-        "alpha='if(lt(t,0.4),t/0.4,if(gt(t,5),1,1))'"
+        f",drawtext=text='{safe}':fontcolor=white@0.94:fontsize=28:"
+        "box=1:boxcolor=black@0.52:boxborderw=12:"
+        "x=78:y=92:"
+        "alpha='if(lt(t,0.35),t/0.35,1)'"
     )
 
 
@@ -92,8 +93,10 @@ def render_scene(
         vf = (
             f"scale={SETTINGS.width}:{SETTINGS.height}:force_original_aspect_ratio=increase:flags=lanczos,"
             f"crop={SETTINGS.width}:{SETTINGS.height}:(in_w-out_w)/2:(in_h-out_h)/2,"
-            f"zoompan=z='min(max(zoom,1)+0.00022,1.055)':d=1:"
+            f"zoompan=z='min(max(zoom,1)+{SETTINGS.image_motion},1.06)':"
+            f"x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:"
             f"s={SETTINGS.width}x{SETTINGS.height}:fps={SETTINGS.fps},"
+            "format=yuv420p,"
             "setpts=PTS-STARTPTS"
             + common
         )
@@ -244,10 +247,10 @@ def mix_music(video: Path, music: Path, out_mp4: Path) -> None:
 
 def burn_subtitles(video: Path, srt: Path, out_mp4: Path) -> None:
     style = (
-        "FontName=DejaVu Sans,FontSize=26,PrimaryColour=&H00FFFFFF,"
-        "OutlineColour=&H70000000,BackColour=&H90000000,"
-        "BorderStyle=3,Outline=0,Shadow=0,Alignment=2,"
-        "MarginV=82,WrapStyle=2,Spacing=0"
+        "FontName=DejaVu Sans,FontSize=25,PrimaryColour=&H00FFFFFF,"
+        "OutlineColour=&HAA000000,BackColour=&H70000000,"
+        "BorderStyle=1,Outline=2,Shadow=0,Alignment=2,"
+        "MarginV=72,WrapStyle=2,Spacing=0"
     )
     try:
         run(
