@@ -28,7 +28,7 @@ permissions:
 jobs:
   generate:
     name: Generate documentary
-    runs-on: \${{ inputs.runner == 'self-hosted' && 'self-hosted' || 'ubuntu-latest' }}
+    runs-on: ${{ inputs.runner == 'self-hosted' && 'self-hosted' || 'ubuntu-latest' }}
     timeout-minutes: 30
     env:
       VDO_OUTPUT_DIR: ./outputs
@@ -71,7 +71,7 @@ jobs:
           path: |
             ./models
             ~/.ollama
-          key: vdo-models-v1-\${{ runner.os }}-qwen3-0.6b-lessac-medium
+          key: vdo-models-v1-${{ runner.os }}-qwen3-0.6b-lessac-medium
 
       - name: Install Ollama
         shell: bash
@@ -94,31 +94,31 @@ jobs:
             sleep 1
           done
           curl -fsS http://127.0.0.1:11434/api/tags >/dev/null
-          ollama pull "\${VDO_OLLAMA_MODEL}"
+          ollama pull "${VDO_OLLAMA_MODEL}"
 
       - name: Download Piper voice
         run: |
           mkdir -p models
-          python -m piper.download_voices "\${VDO_PIPER_MODEL}" --data-dir ./models
+          python -m piper.download_voices "${VDO_PIPER_MODEL}" --data-dir ./models
 
       - name: Generate
         env:
-          TOPIC: \${{ inputs.topic }}
-          MINUTES: \${{ inputs.minutes }}
+          TOPIC: ${{ inputs.topic }}
+          MINUTES: ${{ inputs.minutes }}
         run: |
           set -euo pipefail
-          python main.py "\${TOPIC}" --minutes "\${MINUTES}"
+          python main.py "${TOPIC}" --minutes "${MINUTES}"
 
       - name: Verify final video
         shell: bash
         run: |
           set -euo pipefail
           VIDEO="$(find outputs -type f -path '*/final/documentary.mp4' | head -n 1)"
-          test -n "\${VIDEO}"
-          test -s "\${VIDEO}"
-          echo "VIDEO=\${VIDEO}" >> "\${GITHUB_ENV}"
-          ffprobe -v error -show_entries format=duration,size -of default=noprint_wrappers=1 "\${VIDEO}"
-          printf '## VDO result\n\n- Topic: %s\n- Target minutes: %s\n- Video: %s\n' "\${TOPIC}" "\${MINUTES}" "\${VIDEO}" >> "\${GITHUB_STEP_SUMMARY}"
+          test -n "${VIDEO}"
+          test -s "${VIDEO}"
+          echo "VIDEO=${VIDEO}" >> "${GITHUB_ENV}"
+          ffprobe -v error -show_entries format=duration,size -of default=noprint_wrappers=1 "${VIDEO}"
+          printf '## VDO result\n\n- Topic: %s\n- Target minutes: %s\n- Video: %s\n' "${TOPIC}" "${MINUTES}" "${VIDEO}" >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Upload documentary
         uses: actions/upload-artifact@v4
