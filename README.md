@@ -8,9 +8,9 @@ Example:
 
 The engine is local-first, resumable and designed around free/open-source software.
 It researches the topic, builds a documentary structure, writes narration,
-generates local neural voiceover, finds open-license/archive visuals, creates
-cinematic motion from stills, assembles the film with FFmpeg, and produces
-burned-in subtitles.
+generates a quality-first neural narrator, finds open-license/archive visuals,
+prioritizes real moving footage and human B-roll, assembles the film with FFmpeg,
+and produces burned-in subtitles.
 
 ## What the first production release does
 
@@ -22,7 +22,7 @@ Pipeline:
       -> local research
       -> Qwen3 planning/script
       -> chapter and scene plan
-      -> Piper narration
+      -> Qwen3-TTS natural narration (Kokoro fallback)
       -> Wikimedia Commons visual retrieval
       -> parallel asset download
       -> cinematic Ken Burns motion
@@ -36,7 +36,9 @@ media, audio and rendered scenes instead of starting again.
 ## Open-source stack
 
 - Qwen3 + Ollama for local documentary planning and narration writing.
-- Piper for fast local neural TTS.
+- Qwen3-TTS for natural, instruction-controlled documentary narration.
+- Kokoro for a lightweight natural-voice fallback.
+- Piper remains available only as an explicit legacy fallback.
 - faster-whisper for subtitle transcription.
 - FFmpeg for rendering, encoding and muxing.
 - Wikimedia Commons for openly licensed archive imagery.
@@ -108,9 +110,7 @@ The expensive work is parallelized:
 For stronger subtitle accuracy, set VDO_WHISPER_MODEL=small.
 For NVIDIA GPUs, set VDO_WHISPER_DEVICE=cuda and choose an appropriate compute type.
 
-The system deliberately prefers reliable archive imagery plus motion over
-making every scene with a hosted text-to-video model. That is the main reason
-long documentaries remain practical and restartable.
+The system deliberately prefers real archive footage, human B-roll and observational motion over making every scene with a hosted text-to-video model. That keeps the visuals grounded in real people, places, objects and events while remaining practical and restartable.
 
 ## Run fully from GitHub
 
@@ -126,18 +126,26 @@ See [docs/RUN_GITHUB.md](docs/RUN_GITHUB.md) for the setup and self-hosted confi
 ## Cinematic quality mode
 
 The current pipeline is tuned for documentary-style editing rather than presentation slides:
-- Kokoro is the preferred natural neural voice backend, with Piper as a local fallback.
+- Qwen3-TTS is the preferred natural neural voice backend, with Kokoro as the lightweight fallback. Piper is opt-in only because it can sound more synthetic.
 - Archive video is ranked ahead of still imagery when a suitable open-license clip exists.
 - Scene graphics are limited to the opening shot by default.
 - Short cinematic crossfades are used between shots.
 - The background score is a harmonic ambient bed with voice-aware ducking.
 - Color, contrast and subtle vignette processing are applied consistently.
 
-For the higher-quality local voice backend install:
+For the highest-quality local voice backend install:
 
-    pip install -e ".[kokoro]"
+    pip install -e ".[qwen3,kokoro]"
 
-Kokoro voice can be selected with VDO_KOKORO_VOICE (for example af_heart).
+Qwen3 automatically uses the 1.7B CustomVoice model on NVIDIA GPU systems and the lighter 0.6B CustomVoice model on CPU. Select the narrator with VDO_QWEN3_VOICE (for example Aiden or Ryan).
+
+For a user-owned or authorized reference voice, set:
+
+    VDO_TTS_PROVIDER=qwen3-clone
+    VDO_VOICE_REFERENCE=./path/to/narrator.wav
+    VDO_VOICE_REFERENCE_TEXT="Transcript of the reference clip"
+
+The Qwen3 voice-clone mode is optional; only use a voice you own or are authorized to reproduce.
 
 ## Real documentary story engine
 
