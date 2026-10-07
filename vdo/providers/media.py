@@ -72,10 +72,15 @@ def _rank(asset: dict) -> tuple:
         asset.get("width", 0) >= 1280 and asset.get("height", 0) >= 720
     ) else 1
     duration = float(asset.get("duration") or 0)
-    useful_motion = 0 if is_video and 4 <= duration <= 180 else 1
+    useful_motion = 0 if is_video and 5 <= duration <= 120 else 1
     size = int(asset.get("size") or 0)
     size_rank = 0 if size < 60_000_000 else 1
-    return (motion_rank, clear_license, useful_motion, resolution_rank, size_rank)
+    title = str(asset.get("title", "")).lower()
+    generic_graphic = any(
+        token in title for token in ("logo", "icon", "diagram", "chart", "illustration")
+    )
+    graphic_rank = 1 if generic_graphic and not is_video else 0
+    return (motion_rank, clear_license, useful_motion, graphic_rank, resolution_rank, size_rank)
 
 
 async def download_assets(scenes: list[dict], output_dir: Path, workers: int = 8) -> list[dict]:
@@ -97,7 +102,14 @@ async def download_assets(scenes: list[dict], output_dir: Path, workers: int = 8
                 return {"scene_id": scene_id, "path": str(existing[0]), "source": "cache"}
 
             base_query = str(scene["visual_query"]).strip()
-            searches = [base_query, f"{base_query} video"]
+            shot_type = str(scene.get("shot_type", "b-roll")).strip().lower()
+            story_role = str(scene.get("story_role", "context")).strip().lower()
+
+            searches = [base_query, f"{base_query} documentary footage", f"{base_query} video"]
+            if shot_type in {"human", "interview"} or story_role == "human":
+                searches.insert(0, f"{base_query} people real life")
+            if shot_type in {"archive", "process"}:
+                searches.insert(0, f"{base_query} archival footage")
             found: dict[str, dict] = {}
             for query in searches:
                 for candidate in await _search_commons(client, query):
