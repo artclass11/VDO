@@ -109,11 +109,6 @@ jobs:
           curl -fsS http://127.0.0.1:11434/api/tags >/dev/null
           ollama pull "${VDO_OLLAMA_MODEL}"
 
-      - name: Download Piper voice
-        run: |
-          mkdir -p models
-          python -m piper.download_voices "${VDO_PIPER_MODEL}" --data-dir ./models
-
       - name: Generate
         env:
           TOPIC: ${{ inputs.topic }}
