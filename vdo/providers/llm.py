@@ -44,8 +44,8 @@ DOCUMENTARY RULES
 2a. Treat the camera plan as part of the story: every visual query must describe a concrete subject, place, action, era or human detail that a real camera could capture.
 3. Build 5-9 descriptive chapters. Each chapter must have a clear dramatic purpose and move the story forward.
 4. Use a guide/audience-surrogate narration style: conversational, measured, intimate, observant, never promotional.
-5. Write narration for speech, not reading. Use short-to-medium sentences, natural pauses, and concrete language.
-6. Prefer real moving footage first: real people, places, work, hands, streets, machines, nature, archival film, interviews and observational B-roll. Use still photographs only when motion footage is unavailable. Do not request generic AI art, fantasy scenes, abstract concepts, logos or stock-like illustrations unless absolutely necessary.
+5. Write narration for speech, not reading. Use contractions when natural, varied short-to-medium sentences, conversational punctuation and clean pauses.
+6. Prefer real moving footage first: real people, places, work, hands, streets, machines, nature, archival film, interviews and observational B-roll. Use still photographs only when motion footage is unavailable. Avoid AI-looking visuals, generic illustrations, abstract generated backgrounds, logos and infographic-heavy scenes unless evidence genuinely requires a graphic.
 7. Each scene must have a reason to exist. Alternate wide establishing shots, human moments, details, process footage, interviews and archival evidence. Avoid using the same visual type for more than two consecutive scenes.
 8. Use music as emotional structure: imply a music bed on chapter transitions, reflective pauses and turning points, but never describe copyrighted tracks.
 9. Surface one anchor fact and revisit its meaning later. Never invent or embellish it.
@@ -96,7 +96,7 @@ Then output only the requested JSON documentary plan."""
             {"role": "system", "content": SYSTEM},
             {"role": "user", "content": prompt},
         ],
-        "options": {"temperature": 0.22},
+        "options": {"temperature": 0.20},
     }
     async with httpx.AsyncClient(timeout=SETTINGS.request_timeout) as client:
         response = await client.post(f"{SETTINGS.ollama_url.rstrip('/')}/api/chat", json=payload)
