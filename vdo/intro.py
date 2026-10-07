@@ -124,7 +124,7 @@ def _plan(seconds: int) -> list[dict]:
             "title": "VDO",
             "narration": "VDO. Open Documentary Maker.",
             "visual_query": "",
-            "on_screen": "VDO\nOPEN DOCUMENTARY MAKER\ngithub.com/artclass11/VDO",
+            "on_screen": "VDO  •  OPEN DOCUMENTARY MAKER  •  github.com/artclass11/VDO",
             "story_role": "resolution",
             "shot_type": "detail",
         },
