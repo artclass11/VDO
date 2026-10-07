@@ -16,7 +16,7 @@ from vdo.subtitles import make_srt
 from vdo.utils import run, write_json
 
 
-PIPELINE_VERSION = "3.0-real-documentary-story-engine"
+PIPELINE_VERSION = "4.0-human-narration-real-footage-engine"
 
 
 def _job_dir(topic: str, root: Path) -> Path:
