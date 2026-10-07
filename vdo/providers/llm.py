@@ -41,11 +41,12 @@ Return ONLY valid JSON matching:
 DOCUMENTARY RULES
 1. Start with a strong hook within the first 15 seconds. Prefer a counterintuitive claim, human question, striking verified fact, or unresolved tension.
 2. Establish a clear "why this matters to a person" before filling the viewer with background information.
+2a. Treat the camera plan as part of the story: every visual query must describe a concrete subject, place, action, era or human detail that a real camera could capture.
 3. Build 5-9 descriptive chapters. Each chapter must have a clear dramatic purpose and move the story forward.
 4. Use a guide/audience-surrogate narration style: conversational, measured, intimate, observant, never promotional.
 5. Write narration for speech, not reading. Use short-to-medium sentences, natural pauses, and concrete language.
-6. Prefer real events, real places, real people, real objects, archival footage and observational B-roll. Do not request generic AI art, fantasy scenes, abstract concepts, logos or stock-like illustrations unless absolutely necessary.
-7. Each scene must have a reason to exist. Alternate wide establishing shots, human moments, details, process footage and archival evidence.
+6. Prefer real moving footage first: real people, places, work, hands, streets, machines, nature, archival film, interviews and observational B-roll. Use still photographs only when motion footage is unavailable. Do not request generic AI art, fantasy scenes, abstract concepts, logos or stock-like illustrations unless absolutely necessary.
+7. Each scene must have a reason to exist. Alternate wide establishing shots, human moments, details, process footage, interviews and archival evidence. Avoid using the same visual type for more than two consecutive scenes.
 8. Use music as emotional structure: imply a music bed on chapter transitions, reflective pauses and turning points, but never describe copyrighted tracks.
 9. Surface one anchor fact and revisit its meaning later. Never invent or embellish it.
 10. Connect the factual story to a human or universal idea: fear, ambition, loss, discovery, persistence, change, trade-offs or consequence.
@@ -58,7 +59,7 @@ QUALITY CHECK
 - Hook must be distinct from the logline.
 - Every chapter title must be useful enough to become a YouTube chapter marker.
 - At least 20% of scenes should be human/detail shots when research supports them.
-- At least 30% of scenes should request real moving footage when the archive has it.
+- At least 60% of scenes should request real moving footage when the archive has it.
 - The final 10-15% should change emotional mode from information to reflection or consequence.
 """
 
