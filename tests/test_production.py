@@ -39,4 +39,4 @@ def test_media_rank_prefers_video_and_relevance():
 
 def test_tts_text_cleanup_keeps_natural_sentence_flow():
     text = _clean_for_tts("  Start — with one idea; then build the story...  ")
-    assert text == "Start ,  with one idea.  then build the story..."
+    assert text == "Start , with one idea. then build the story..."
