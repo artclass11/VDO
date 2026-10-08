@@ -14,7 +14,7 @@ from vdo.post import (
 )
 
 try:
-    from mcp.server import MCPServer
+    from mcp.server.mcpserver import MCPServer
 except ImportError as exc:
     raise RuntimeError("VDO MCP requires MCP Python SDK v2. Install with: pip install -e '.[post]'") from exc
 
@@ -28,6 +28,7 @@ mcp = MCPServer(
         "generated color look. Never claim an automatic picture lock or final grade "
         "without human review. Normalize LOG/RAW footage before display-referred LUTs."
     ),
+    version="1.2.0",
 )
 
 @mcp.tool()
@@ -100,7 +101,7 @@ def vdo_make_color_package(
     color.mkdir(parents=True, exist_ok=True)
     safe = color_style.lower().replace(" ", "_")
     lut = write_cube_lut(color_style, color / f"VDO_{safe}.cube", size=lut_size)
-    cdl = write_asc_cdl(color_style, color / f"VDO_{safe}.cdl")
+    cdl = write_asc_cdl(color_style, color / f"VDO_{safe}.cdl",)
     return {
         "lut": str(lut),
         "cdl": str(cdl),
