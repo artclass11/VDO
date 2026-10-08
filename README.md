@@ -238,3 +238,26 @@ licenses. Their own licenses remain authoritative.
 
 Open-source production foundation. The local pipeline is designed to keep
 working when a remote model or hosted generation service is unavailable.
+
+
+## Professional post-production MCP
+
+VDO now includes a local-first MCP for professional documentary and film post-production. One natural-language brief can produce a reviewable edit plan, FCPXML, EDL, optional OpenTimelineIO, a 33-point color LUT, ASC CDL and editor-specific handoff guidance for:
+
+- DaVinci Resolve
+- Adobe Premiere Pro
+- Final Cut Pro
+- CapCut
+- VN Video Editor
+
+Install the MCP layer:
+
+    pip install -e ".[post]"
+
+Run it locally:
+
+    python mcp_server.py
+
+The post-production package is deliberately non-destructive. It creates auditable interchange and grading artifacts rather than silently changing source media or claiming a final picture lock. For LOG/RAW footage, normalize the camera input first; the generated VDO LUT is a display-referred finishing look.
+
+See [docs/MCP_POST_PRODUCTION.md](docs/MCP_POST_PRODUCTION.md).
