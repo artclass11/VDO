@@ -14,6 +14,15 @@ on:
       - "pyproject.toml"
   pull_request:
     branches: [main]
+    paths:
+      - "vdo/post/**"
+      - "mcp_server.py"
+      - "tests/test_post_production.py"
+      - "desktop/**"
+      - "mobile/**"
+      - ".github/workflows/post-production-mcp.yml"
+      - ".github/workflows/offline-apps.yml"
+      - "pyproject.toml"
   workflow_dispatch:
 
 permissions:
@@ -96,6 +105,25 @@ jobs:
           java-version: "17"
           cache: gradle
       - uses: gradle/actions/setup-gradle@v4
+      - name: Accept Android SDK licenses and install pinned NDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          if [[ ! -x "$SDKMANAGER" ]]; then
+            SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          fi
+          test -x "$SDKMANAGER"
+          set +o pipefail
+          yes | "$SDKMANAGER" --licenses > "$RUNNER_TEMP/sdk-licenses.log"
+          LICENSE_STATUS=$?
+          set -o pipefail
+          if [[ "$LICENSE_STATUS" -ne 0 ]]; then
+            cat "$RUNNER_TEMP/sdk-licenses.log"
+            exit "$LICENSE_STATUS"
+          fi
+          "$SDKMANAGER" "ndk;29.0.13113456"
       - name: Inject VDO Android UI into upstream llama.cpp sample
         shell: bash
         run: |
