@@ -1,0 +1,148 @@
+name: VDO Offline Apps
+
+on:
+  push:
+    branches: [main, feature/post-production-mcp]
+    paths:
+      - "vdo/post/**"
+      - "mcp_server.py"
+      - "tests/test_post_production.py"
+      - "desktop/**"
+      - "mobile/**"
+      - ".github/workflows/post-production-mcp.yml"
+      - ".github/workflows/offline-apps.yml"
+      - "pyproject.toml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "vdo/post/**"
+      - "mcp_server.py"
+      - "tests/test_post_production.py"
+      - "desktop/**"
+      - "mobile/**"
+      - ".github/workflows/post-production-mcp.yml"
+      - ".github/workflows/offline-apps.yml"
+      - "pyproject.toml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vdo-offline-apps-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  post-production-tests:
+    name: Post-production regression suite
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - name: Install test dependencies
+        run: python -m pip install "mcp>=2,<3" "OpenTimelineIO>=0.18,<1" "pytest>=8,<9"
+      - name: Compile Python sources
+        run: python -m compileall -q vdo/post mcp_server.py desktop/vdo_studio.py
+      - name: Run post-production tests
+        run: python -m pytest -q tests/test_post_production.py
+      - name: Verify MCP registration
+        run: |
+          python - <<'PY'
+          import mcp_server
+          assert mcp_server.mcp.name == "vdo-post-production"
+          print("VDO MCP server imports successfully")
+          PY
+
+  desktop-build:
+    name: Desktop bundle (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact: vdo-studio-linux
+          - os: windows-latest
+            artifact: vdo-studio-windows
+          - os: macos-latest
+            artifact: vdo-studio-macos
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install bundle dependencies
+        run: python -m pip install "OpenTimelineIO>=0.18,<1" "pyinstaller>=6,<7"
+      - name: Build VDO Studio
+        run: python -m PyInstaller --noconfirm --clean --onefile --windowed --paths . --name VDO-Studio desktop/vdo_studio.py
+      - name: Upload desktop bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.artifact }}
+          path: |
+            dist/VDO-Studio
+            dist/VDO-Studio.exe
+          if-no-files-found: error
+          retention-days: 14
+
+  android-apk:
+    name: Offline Android APK
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check out pinned llama.cpp Android runtime
+        uses: actions/checkout@v4
+        with:
+          repository: ggml-org/llama.cpp
+          ref: 3d65c90d04d337e88f2b1f7f0061f40a5324e662
+          path: third_party/llama.cpp
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "17"
+          cache: gradle
+      - uses: gradle/actions/setup-gradle@v4
+      - name: Accept Android SDK licenses and install pinned NDK
+        shell: bash
+        run: |
+          set -euo pipefail
+          SDK_ROOT="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-/usr/local/lib/android/sdk}}"
+          SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          if [[ ! -x "$SDKMANAGER" ]]; then
+            SDKMANAGER="$(find "$SDK_ROOT/cmdline-tools" -type f -name sdkmanager | head -n 1)"
+          fi
+          test -x "$SDKMANAGER"
+          set +o pipefail
+          yes | "$SDKMANAGER" --licenses > "$RUNNER_TEMP/sdk-licenses.log"
+          LICENSE_STATUS=$?
+          set -o pipefail
+          if [[ "$LICENSE_STATUS" -ne 0 ]]; then
+            cat "$RUNNER_TEMP/sdk-licenses.log"
+            exit "$LICENSE_STATUS"
+          fi
+          "$SDKMANAGER" "ndk;29.0.13113456"
+      - name: Inject VDO Android UI into upstream llama.cpp sample
+        shell: bash
+        run: |
+          set -euo pipefail
+          SRC="$GITHUB_WORKSPACE/mobile/app/src/main"
+          DEST="$GITHUB_WORKSPACE/third_party/llama.cpp/examples/llama.android/app/src/main"
+          cp "$SRC/AndroidManifest.xml" "$DEST/AndroidManifest.xml"
+          cp "$SRC/java/com/example/llama/MainActivity.kt" "$DEST/java/com/example/llama/MainActivity.kt"
+          cp "$SRC/res/layout/activity_main.xml" "$DEST/res/layout/activity_main.xml"
+          cp "$SRC/res/values/strings.xml" "$DEST/res/values/strings.xml"
+          cp "$SRC/res/values/themes.xml" "$DEST/res/values/themes.xml"
+          chmod +x "$GITHUB_WORKSPACE/third_party/llama.cpp/examples/llama.android/gradlew"
+      - name: Build debug APK
+        working-directory: third_party/llama.cpp/examples/llama.android
+        run: ./gradlew --no-daemon :app:assembleDebug
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: vdo-studio-android-debug
+          path: third_party/llama.cpp/examples/llama.android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14

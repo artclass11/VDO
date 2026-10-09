@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "vdo-documentary"
-version = "1.1.0"
-description = "Local-first open-source documentary generator from a single topic line."
+version = "1.2.0"
+description = "Local-first open-source documentary generator with professional post-production MCP workflows."
 readme = "README.md"
 requires-python = ">=3.10"
 license = "MIT"
@@ -21,10 +21,12 @@ api = ["fastapi>=0.115,<1", "uvicorn[standard]>=0.30,<1"]
 kokoro = ["kokoro>=0.9.4,<1", "soundfile>=0.12,<1"]
 qwen3 = ["qwen-tts==0.1.1"]
 dev = ["pytest>=8,<9"]
+post = ["mcp>=2,<3", "OpenTimelineIO>=0.18,<1", "OpenTimelineIO-Plugins>=0.18.1,<1"]
 
 [tool.setuptools]
-packages = ["vdo", "vdo.providers"]
-py-modules = ["main", "server"]
+packages = ["vdo", "vdo.providers", "vdo.post"]
+py-modules = ["main", "server", "mcp_server"]
 
 [project.scripts]
 vdo = "main:cli"
+vdo-mcp = "mcp_server:main"

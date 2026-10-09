@@ -1,0 +1,4 @@
+mcp>=2,<3
+OpenTimelineIO>=0.18,<1
+pytest>=8,<9
+pyinstaller>=6,<7

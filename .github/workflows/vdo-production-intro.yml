@@ -13,6 +13,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: vdo-intro-quality-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   production-intro:
     runs-on: ubuntu-latest

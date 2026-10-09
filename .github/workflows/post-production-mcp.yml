@@ -1,0 +1,35 @@
+name: VDO Post-Production MCP
+
+on:
+  push:
+    branches: [main, feature/post-production-mcp]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: vdo-post-mcp-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  post-production:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install focused MCP dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install "mcp>=2,<3" "OpenTimelineIO>=0.18,<1" "OpenTimelineIO-Plugins>=0.18.1,<1" "pytest>=8,<9"
+
+      - name: Compile MCP
+        run: python -m py_compile mcp_server.py vdo/post/core.py
+
+      - name: Run post-production tests
+        run: python -m pytest -q tests/test_post_production.py
+
+      - name: Import MCP server
+        run: python -c "import mcp_server; print('VDO Post-Production MCP import OK')"

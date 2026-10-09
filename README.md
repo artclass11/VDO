@@ -238,3 +238,42 @@ licenses. Their own licenses remain authoritative.
 
 Open-source production foundation. The local pipeline is designed to keep
 working when a remote model or hosted generation service is unavailable.
+
+
+## Professional post-production MCP
+
+VDO now includes a local-first MCP for professional documentary and film post-production. One natural-language brief can produce a reviewable edit plan, FCPXML, EDL, optional OpenTimelineIO, a 33-point color LUT, ASC CDL and editor-specific handoff guidance for:
+
+- DaVinci Resolve
+- Adobe Premiere Pro
+- Final Cut Pro
+- CapCut
+- VN Video Editor
+
+Install the MCP layer:
+
+    pip install -e ".[post]"
+
+Run it locally:
+
+    python mcp_server.py
+
+The post-production package is deliberately non-destructive. It creates auditable interchange and grading artifacts rather than silently changing source media or claiming a final picture lock. For LOG/RAW footage, normalize the camera input first; the generated VDO LUT is a display-referred finishing look.
+
+See [docs/MCP_POST_PRODUCTION.md](docs/MCP_POST_PRODUCTION.md).
+
+## Offline desktop software and Android APK
+
+VDO is also being packaged for local/offline use:
+
+- Desktop app: a minimal Windows/macOS/Linux GUI that uses a locally installed Ollama model at 127.0.0.1 only, then creates the editor handoff package.
+- Android APK: a companion director assistant using on-device GGUF inference through a pinned llama.cpp Android runtime. The model is selected from device storage and is not bundled inside the APK; no internet permission is required at runtime.
+- Both are built and checked through GitHub Actions. Android APK builds require the native NDK toolchain and take place on the GitHub runner.
+
+Start here:
+
+- [Desktop offline app guide](desktop/README.md)
+- [Android offline APK guide](mobile/README.md)
+- [Post-production MCP guide](docs/MCP_POST_PRODUCTION.md)
+
+The desktop app can generate open interchange and color handoffs. The Android app drafts the script, scene structure, shot list, edit notes and grade intent locally; it is a companion planner, not a mobile NLE.
