@@ -119,10 +119,10 @@ def test_complete_package_builds_for_all_editors(monkeypatch, tmp_path: Path):
         out = tmp_path / ("out-" + editor)
         result = core.create_post_package(
             media_dir, out, brief="Human-centered documentary with interview and B-roll",
-            editor=editor, duration_seconds=10, fps=24, color_style="neutral_documentary",
+            editor=editor, duration_seconds=15, fps=24, color_style="neutral_documentary",
         )
         assert result["decision_count"] == 2
-        assert result["actual_duration_seconds"] == 10
+        assert result["actual_duration_seconds"] == 15
         assert (out / "EDIT_PLAN.json").is_file()
         assert (out / "interchange" / "vdo-documentary.fcpxml").is_file()
         assert (out / "interchange" / "vdo-documentary.edl").is_file()
@@ -139,3 +139,22 @@ def test_package_rejects_output_inside_media_tree(monkeypatch, tmp_path: Path):
             media_dir, media_dir / "exports",
             brief="Short documentary", editor="resolve", duration_seconds=6,
         )
+
+
+def test_android_app_does_not_request_internet_permission():
+    manifest_path = Path(__file__).resolve().parents[1] / "mobile" / "app" / "src" / "main" / "AndroidManifest.xml"
+    root = ET.parse(manifest_path).getroot()
+    android_ns = "{http://schemas.android.com/apk/res/android}"
+    permissions = [
+        item.attrib.get(android_ns + "name", "")
+        for item in root.findall("uses-permission")
+    ]
+    assert "android.permission.INTERNET" not in permissions
+    assert root.find("application") is not None
+
+
+def test_desktop_app_uses_loopback_llm_only():
+    source_path = Path(__file__).resolve().parents[1] / "desktop" / "vdo_studio.py"
+    source = source_path.read_text(encoding="utf-8")
+    assert "http://127.0.0.1:11434" in source
+    assert "https://" not in source
