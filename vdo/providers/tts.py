@@ -48,13 +48,13 @@ def ensure_voice() -> tuple[Path, Path]:
 
 
 def _clean_for_tts(text: str) -> str:
-    text = re.sub(r"\\s+", " ", text or "").strip()
+    text = re.sub(r"\s+", " ", text or "").strip()
     text = text.replace("—", ", ").replace("–", ", ")
     text = text.replace(";", ". ")
-    text = re.sub(r"\\.{3,}", "...", text)
+    text = re.sub(r"\.{3,}", "...", text)
     # Punctuation normalization introduces spaces; collapse them again so
     # chunked neural TTS receives clean, naturally paced text.
-    return re.sub(r"\\s+", " ", text).strip()
+    return re.sub(r"\s+", " ", text).strip()
 
 
 def _postprocess_voice(wav: Path) -> None:
