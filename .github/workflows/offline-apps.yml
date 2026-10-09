@@ -38,7 +38,7 @@ jobs:
       - name: Compile Python sources
         run: python -m compileall -q vdo/post mcp_server.py desktop/vdo_studio.py
       - name: Run post-production tests
-        run: pytest -q tests/test_post_production.py
+        run: python -m pytest -q tests/test_post_production.py
       - name: Verify MCP registration
         run: |
           python - <<'PY'
