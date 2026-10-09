@@ -19,6 +19,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: vdo-offline-apps-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   post-production-tests:
     name: Post-production regression suite
