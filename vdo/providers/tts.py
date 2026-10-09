@@ -49,8 +49,13 @@ def ensure_voice() -> tuple[Path, Path]:
 
 def _clean_for_tts(text: str) -> str:
     text = re.sub(r"\s+", " ", text or "").strip()
-    text = text.replace("—", ", ").replace("–", ", ")
-    text = text.replace(";", ". ")
+    # Normalize punctuation before collapsing whitespace again, so em dashes
+    # and semicolons never inject doubled pauses/spaces into neural narration.
+    text = re.sub(r"\s*[—–]\s*", ", ", text)
+    text = re.sub(r"\s*;\s*", ". ", text)
+    text = re.sub(r",\s*,+", ",", text)
+    text = re.sub(r"\s+([,.;:!?])", r"\1", text)
+    text = re.sub(r"\s+", " ", text).strip()
     text = re.sub(r"\.{3,}", "...", text)
     return text
 
