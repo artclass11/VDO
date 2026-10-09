@@ -105,3 +105,37 @@ def test_unsupported_fps_and_bad_edit_decisions_are_rejected(tmp_path: Path):
 
 def test_editor_package_support_surface():
     assert {"resolve", "premiere", "final_cut", "capcut", "vn"} <= set(core.EDITOR_CAPABILITIES)
+
+
+def test_complete_package_builds_for_all_editors(monkeypatch, tmp_path: Path):
+    media_dir = tmp_path / "media"
+    media_dir.mkdir()
+    clips = [
+        core.Clip(id="a", path=str(media_dir / "interview.mp4"), name="interview.mp4", kind="video", duration=12, width=1920, height=1080, fps=24, reel="INTERVIEW"),
+        core.Clip(id="b", path=str(media_dir / "broll.mp4"), name="broll.mp4", kind="video", duration=8, width=1920, height=1080, fps=24, reel="BROLL"),
+    ]
+    monkeypatch.setattr(core, "scan_media", lambda root, recursive=True: clips)
+    for editor in ("resolve", "premiere", "final_cut", "capcut", "vn"):
+        out = tmp_path / ("out-" + editor)
+        result = core.create_post_package(
+            media_dir, out, brief="Human-centered documentary with interview and B-roll",
+            editor=editor, duration_seconds=10, fps=24, color_style="neutral_documentary",
+        )
+        assert result["decision_count"] == 2
+        assert result["actual_duration_seconds"] == 10
+        assert (out / "EDIT_PLAN.json").is_file()
+        assert (out / "interchange" / "vdo-documentary.fcpxml").is_file()
+        assert (out / "interchange" / "vdo-documentary.edl").is_file()
+        assert (out / "color" / "VDO_neutral-documentary.cube").is_file()
+        assert (out / editor / "IMPORT_GUIDE.md").is_file()
+
+
+def test_package_rejects_output_inside_media_tree(monkeypatch, tmp_path: Path):
+    media_dir = tmp_path / "media"
+    media_dir.mkdir()
+    monkeypatch.setattr(core, "scan_media", lambda root, recursive=True: _clips().values())
+    with pytest.raises(ValueError, match="outside the media folder"):
+        core.create_post_package(
+            media_dir, media_dir / "exports",
+            brief="Short documentary", editor="resolve", duration_seconds=6,
+        )
