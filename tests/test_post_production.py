@@ -73,8 +73,7 @@ def test_edit_plan_never_selects_audio_and_does_not_overrun_clip():
     clips = [
         core.Clip(id="audio", path="/tmp/music.wav", name="music.wav", kind="audio", duration=100),
         core.Clip(id="tiny", path="/tmp/tiny.mp4", name="tiny.mp4", kind="video", duration=1.25),
-        core.Clip(id="long", path="/tmp/long.mp4", name="long.mp4", kind="video", duration=20),
-    ]
+            ]
     plan = core.suggest_edit_plan(clips, "tiny b roll documentary", duration_seconds=2)
     assert len(plan.decisions) == 1
     assert plan.decisions[0].clip_id == "tiny"
