@@ -224,11 +224,44 @@ def concatenate(scene_files: list[Path], out_mp4: Path) -> None:
 
 def mix_music(video: Path, music: Path, out_mp4: Path) -> None:
     level = SETTINGS.music_level
-    filter_complex = (
+    voice_aware_filter = (
         "[0:a]loudnorm=I=-16:TP=-1.5:LRA=7[voice];"
         f"[1:a]volume={level:.3f}[music];"
         "[music][voice]sidechaincompress=threshold=0.035:ratio=8:attack=25:release=500[ducked];"
         "[voice][ducked]amix=inputs=2:duration=first:dropout_transition=3,"
+        "alimiter=limit=0.95[a]"
+    )
+    command = [
+        "ffmpeg", "-y",
+        "-i", str(video),
+        "-i", str(music),
+        "-filter_complex", voice_aware_filter,
+        "-map", "0:v:0",
+        "-map", "[a]",
+        "-c:v", "copy",
+        "-c:a", "aac",
+        "-b:a", SETTINGS.audio_bitrate,
+        "-movflags", "+faststart",
+        str(out_mp4),
+    ]
+    try:
+        run(command, timeout=1800)
+        return
+    except Exception as exc:
+        detail = getattr(exc, "stderr", "") or ""
+        if isinstance(detail, bytes):
+            detail = detail.decode("utf-8", errors="replace")
+        print(
+            "[VDO] Voice-aware music ducking failed; retrying a simpler, "
+            f"compatible mix. {str(detail)[-1200:] or str(exc)}"
+        )
+
+    # Safe fallback for FFmpeg builds that reject the side-chain filter graph.
+    # Keep speech normalized and the ambience quiet; never drop the narration.
+    safe_filter = (
+        "[0:a]aresample=48000,loudnorm=I=-16:TP=-1.5:LRA=7[voice];"
+        f"[1:a]aresample=48000,volume={level:.3f}[music];"
+        "[voice][music]amix=inputs=2:duration=first:dropout_transition=3,"
         "alimiter=limit=0.95[a]"
     )
     run(
@@ -236,7 +269,7 @@ def mix_music(video: Path, music: Path, out_mp4: Path) -> None:
             "ffmpeg", "-y",
             "-i", str(video),
             "-i", str(music),
-            "-filter_complex", filter_complex,
+            "-filter_complex", safe_filter,
             "-map", "0:v:0",
             "-map", "[a]",
             "-c:v", "copy",
