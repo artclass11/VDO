@@ -56,8 +56,8 @@ def test_lut_has_correct_cube_size_order_and_clamped_values(tmp_path: Path):
     assert len(lines) == 17**3
     vals = [[float(v) for v in row.split()] for row in lines]
     assert all(len(row) == 3 and all(0 <= value <= 1 for value in row) for row in vals)
-    assert vals[0] == pytest.approx(list(core._grade(0, 0, 0, core._look("warm_documentary"))), abs=5e-7))
-    assert vals[1] == pytest.approx(list(core._grade(1/16, 0, 0, core._look("warm_documentary"))), abs=5e-7))
+    assert vals[0] == pytest.approx(list(core._grade(0, 0, 0, core._look("warm_documentary"))), abs=5e-7)
+    assert vals[1] == pytest.approx(list(core._grade(1/16, 0, 0, core._look("warm_documentary"))), abs=5e-7)
 
 
 def test_cdl_is_well_formed_and_color_presets_are_explicit(tmp_path: Path):
