@@ -1,1 +1,1 @@
-VDO — Open Documentary Maker: from one line of text to a cinematic, grounded documentary — local-first, open-source, resumable, and production-ready.
+VDO — Open Documentary Maker: from one idea to a cinematic documentary, built with local open-source tools.
