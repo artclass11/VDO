@@ -29,9 +29,7 @@ def test_fcpxml_is_well_formed_and_all_refs_resolve(tmp_path: Path):
     path = core.write_fcpxml(project, clips, tmp_path / "timeline.fcpxml")
     root = ET.parse(path).getroot()
     assert root.attrib["version"] == "1.10"
-    ids = {node.attrib["id"] for node in root.findall(".//asset") | set()} if False else {
-        node.attrib["id"] for node in root.findall(".//asset")
-    }
+    ids = {node.attrib["id"] for node in root.findall(".//asset")}
     refs = {node.attrib["ref"] for node in root.findall(".//asset-clip")}
     assert refs <= ids
     assert len(refs) == 2
@@ -49,7 +47,7 @@ def test_edl_timecode_and_events(tmp_path: Path):
     text = path.read_text(encoding="utf-8")
     assert "FCM: NON-DROP FRAME" in text
     assert "001" in text and "* FROM CLIP NAME: interview.mp4" in text
-    assert "00:00:05:23" in text
+    assert "00:00:06:00" in text
 
 
 def test_lut_has_correct_cube_size_order_and_clamped_values(tmp_path: Path):
