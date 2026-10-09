@@ -192,6 +192,18 @@ def _rate(fps: float) -> tuple[int, int]:
     from fractions import Fraction
     if not math.isfinite(fps) or fps <= 0 or fps > 240:
         raise ValueError("fps must be finite and between 0 and 240.")
+    # Preserve common NTSC-derived frame rates exactly instead of encoding the
+    # rounded decimal (23.976 = 2997/125) as an inaccurate timeline rate.
+    ntsc_rates = {
+        23.976: (24000, 1001),
+        29.97: (30000, 1001),
+        47.952: (48000, 1001),
+        59.94: (60000, 1001),
+        119.88: (120000, 1001),
+    }
+    for nominal, ratio in ntsc_rates.items():
+        if abs(fps - nominal) <= 0.002:
+            return ratio
     fraction = Fraction(fps).limit_denominator(1001)
     return fraction.numerator, fraction.denominator
 
@@ -329,7 +341,20 @@ def write_otio(project: EditProject, clips: dict[str, Clip], path: str | Path) -
     timeline = otio.schema.Timeline(name=project.name)
     track = otio.schema.Track(name="Picture", kind="Video")
     timeline.tracks.append(track)
+    cursor = 0.0
     for decision in project.decisions:
+        # OTIO tracks are sequential. Preserve intentional gaps instead of
+        # silently moving later shots earlier than their FCPXML/EDL positions.
+        if decision.timeline_in > cursor + 1e-6:
+            gap_seconds = decision.timeline_in - cursor
+            gap = otio.schema.Gap(
+                name="VDO timeline gap",
+                source_range=otio.opentime.TimeRange(
+                    start_time=otio.opentime.RationalTime(0, project.fps),
+                    duration=otio.opentime.RationalTime(gap_seconds * project.fps, project.fps),
+                ),
+            )
+            track.append(gap)
         clip = clips[decision.clip_id]
         source_out = decision.source_out
         if source_out is None:
@@ -342,6 +367,7 @@ def write_otio(project: EditProject, clips: dict[str, Clip], path: str | Path) -
         )
         item.metadata["vdo"] = {"clip_id": clip.id, "notes": decision.notes}
         track.append(item)
+        cursor = decision.timeline_out
     otio.adapters.write_to_file(timeline, str(out), adapter_name="otio_json")
     return out
 
