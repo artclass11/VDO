@@ -180,6 +180,13 @@ class VDOStudio:
             messagebox.showerror("Local model required", "Select an installed local Ollama model. VDO never uses a cloud fallback.")
             return
 
+        # Read all Tk state on the UI thread before the worker starts. The
+        # background thread must use an immutable job snapshot, never Tcl vars.
+        project_name = self.project_name.get().strip() or "VDO Documentary"
+        editor_key = self.editor.get()
+        editor_label = EDITOR_CAPABILITIES[editor_key]["label"]
+        color_style = self.look.get()
+
         for widget in self.root.winfo_children():
             self._set_children_state(widget, "disabled")
         self.status.set("WORKING LOCALLY · asking the local LLM to refine the edit brief…")
@@ -187,9 +194,9 @@ class VDOStudio:
         def task() -> None:
             try:
                 prompt = (
-                    f"{SYSTEM_PROMPT}\n\nPROJECT TITLE: {self.project_name.get().strip()}\n"
-                    f"TARGET EDITOR: {EDITOR_CAPABILITIES[self.editor.get()]['label']}\n"
-                    f"TARGET LENGTH: {target_duration} seconds\nCOLOR INTENT: {self.look.get()}\n"
+                    f"{SYSTEM_PROMPT}\n\nPROJECT TITLE: {project_name}\n"
+                    f"TARGET EDITOR: {editor_label}\n"
+                    f"TARGET LENGTH: {target_duration} seconds\nCOLOR INTENT: {color_style}\n"
                     f"USER BRIEF:\n{brief}\n\nReturn the refined production brief in plain text, with concise scenes and edit notes."
                 )
                 result = self._local_request("/api/generate", {
@@ -206,11 +213,11 @@ class VDOStudio:
                     media_dir=media,
                     output_dir=output,
                     brief=refined,
-                    editor=self.editor.get(),
+                    editor=editor_key,
                     duration_seconds=target_duration,
-                    project_name=self.project_name.get().strip() or "VDO Documentary",
+                    project_name=project_name,
                     fps=frame_rate,
-                    color_style=self.look.get(),
+                    color_style=color_style,
                 )
                 (Path(output) / "LOCAL_LLM_EDIT_BRIEF.txt").write_text(refined + "\n", encoding="utf-8")
                 self.root.after(0, lambda: self._completed(package))
@@ -221,7 +228,7 @@ class VDOStudio:
 
     def _set_children_state(self, widget: tk.Widget, state: str) -> None:
         try:
-            if isinstance(widget, (tk.Button, ttk.Button, ttk.Combobox)):
+            if isinstance(widget, (tk.Button, tk.Entry, tk.Text, ttk.Button, ttk.Combobox)):
                 widget.configure(state=state)
         except tk.TclError:
             pass
