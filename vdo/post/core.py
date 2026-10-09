@@ -396,7 +396,11 @@ def _grade(red: float, green: float, blue: float, params: dict[str, float]) -> t
     rgb[2] += params["teal"]
     rgb[1] += params["teal"] * 0.35
     rgb = [channel * (1.0 - params["fade"]) + params["fade"] * 0.035 for channel in rgb]
-    rgb = [max(0.0, min(1.0, channel ** params["gamma"])) for channel in rgb]
+    # Color offsets and teal/warm shifts can move negative-channel values below
+    # zero; clamp before exponentiation because a fractional gamma on negatives
+    # produces complex values and an invalid .cube entry.
+    rgb = [max(0.0, min(1.0, channel)) for channel in rgb]
+    rgb = [channel ** params["gamma"] for channel in rgb]
     return (rgb[0], rgb[1], rgb[2])
 
 
