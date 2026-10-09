@@ -23,10 +23,10 @@ Example MCP intent:
 | DaVinci Resolve | FCPXML / EDL / OTIO | .cube + ASC CDL + Resolve Python helper | Local Resolve scripting |
 | Premiere Pro | FCPXML / EDL / OTIO | .cube + ASC CDL | UXP-ready handoff |
 | Final Cut Pro | FCPXML / OTIO | .cube + ASC CDL | Native FCPXML interchange |
-| CapCut | Open interchange + edit plan | .cube + grade recipe | Guided handoff |
-| VN | Edit plan + open interchange | .cube + grade recipe | Guided handoff |
+| CapCut | Reviewable EDIT_PLAN.json (manual/import path depends on build) | .cube if supported + grade recipe | Guided handoff; no native project-file claim |
+| VN | Reviewable EDIT_PLAN.json | .cube if supported + grade recipe | Guided handoff; no native project-file claim |
 
-VDO deliberately avoids undocumented private CapCut/VN project formats. The project remains portable and auditable through open interchange artifacts.
+VDO deliberately avoids undocumented private CapCut/VN project formats and does not claim those apps reliably import FCPXML/EDL/OTIO. Those users receive an auditable media manifest, edit plan and color recipe; import support varies by application version and must be confirmed in that version.
 
 ## Generated package
 
