@@ -102,9 +102,16 @@ def render_scene(
         )
         inputs = ["-loop", "1", "-i", asset]
     else:
+        # Network-independent cinematic fallback: textured charcoal with two slow,
+        # muted light sweeps. This keeps the film visually alive when archive APIs
+        # are rate-limited or unavailable, instead of producing a blank/failed job.
+        span_a = SETTINGS.width + 720
+        span_b = SETTINGS.width + 460
         vf = (
-            f"color=c=0x0b0d10:s={SETTINGS.width}x{SETTINGS.height}:r={SETTINGS.fps},"
-            "setpts=PTS-STARTPTS"
+            f"color=c=0x090c11:s={SETTINGS.width}x{SETTINGS.height}:r={SETTINGS.fps},"
+            "noise=alls=8:allf=t+u,"
+            f"drawbox=x='t*55-trunc(t*55/{span_a})*{span_a}-720':y=0:w=720:h=ih:color=0x173e4b@0.32:t=fill,"
+            f"drawbox=x='t*31-trunc(t*31/{span_b})*{span_b}-460':y=0:w=460:h=ih:color=0x6d4b37@0.15:t=fill"
             + common
         )
         inputs = ["-f", "lavfi", "-i", vf]
@@ -174,7 +181,6 @@ def concatenate(scene_files: list[Path], out_mp4: Path) -> None:
     durations = [_duration(p) for p in scene_files]
     if any(d <= transition * 1.5 for d in durations):
         transition = 0.0
-
     if transition <= 0:
         return concatenate(scene_files, out_mp4)
 
@@ -182,7 +188,6 @@ def concatenate(scene_files: list[Path], out_mp4: Path) -> None:
     video_label = "0:v"
     audio_label = "0:a"
     cumulative = durations[0]
-
     for i in range(1, len(scene_files)):
         v_out = f"v{i}"
         a_out = f"a{i}"
@@ -200,7 +205,6 @@ def concatenate(scene_files: list[Path], out_mp4: Path) -> None:
     inputs: list[str] = []
     for p in scene_files:
         inputs += ["-i", str(p)]
-
     run(
         [
             "ffmpeg", "-y",
