@@ -22,8 +22,8 @@ EDITOR_CAPABILITIES: dict[str, dict[str, Any]] = {
     "resolve": {"label": "DaVinci Resolve", "timeline": ["fcpxml", "edl", "otio"], "grading": ["cube", "cdl", "resolve_python"]},
     "premiere": {"label": "Adobe Premiere Pro", "timeline": ["fcpxml", "edl", "otio"], "grading": ["cube", "cdl", "premiere_uxp_manifest"]},
     "final_cut": {"label": "Final Cut Pro", "timeline": ["fcpxml", "otio"], "grading": ["cube", "cdl"]},
-    "capcut": {"label": "CapCut", "timeline": ["fcpxml", "edl", "otio"], "grading": ["cube", "grade_recipe"]},
-    "vn": {"label": "VN Video Editor", "timeline": ["edl", "otio"], "grading": ["cube", "grade_recipe"]},
+    "capcut": {"label": "CapCut", "timeline": ["edit_plan"], "grading": ["cube_if_supported", "grade_recipe"]},
+    "vn": {"label": "VN Video Editor", "timeline": ["edit_plan"], "grading": ["cube_if_supported", "grade_recipe"]},
 }
 
 
