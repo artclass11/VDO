@@ -14,6 +14,7 @@ VIDEO_MIMES = {"video/mp4", "video/webm", "video/ogg"}
 SUPPORTED = IMAGE_MIMES | VIDEO_MIMES
 BAD_TITLE_TOKENS = {"logo", "icon", "diagram", "illustration", "poster", "badge", "flag"}
 USER_AGENT = "VDO/3.1 (https://github.com/artclass11/VDO; open-source documentary engine)"
+_COMMONS_API_DISABLED = False
 
 
 def _query_tokens(query: str) -> list[str]:
@@ -34,6 +35,9 @@ async def _search_commons(
     limit: int = 14,
 ) -> list[dict]:
     """Search Commons without making a temporary API/network block fatal to a render."""
+    global _COMMONS_API_DISABLED
+    if _COMMONS_API_DISABLED:
+        return []
     try:
         response = await client.get(
             COMMONS_API,
@@ -50,12 +54,17 @@ async def _search_commons(
             },
         )
         if response.status_code in {401, 403, 429}:
+            _COMMONS_API_DISABLED = True
             print(f"[VDO] Wikimedia Commons search unavailable (HTTP {response.status_code}); using local visual fallback.")
             return []
         response.raise_for_status()
         pages = response.json().get("query", {}).get("pages", {})
-    except (httpx.HTTPError, ValueError) as exc:
-        print(f"[VDO] Commons search unavailable ({exc}); using local visual fallback.")
+    except httpx.HTTPError as exc:
+        _COMMONS_API_DISABLED = True
+        print(f"[VDO] Commons search unavailable ({exc}); disabling remote media search for this render.")
+        return []
+    except ValueError as exc:
+        print(f"[VDO] Commons response could not be parsed ({exc}); using local visual fallback.")
         return []
 
     assets: list[dict] = []
@@ -132,10 +141,12 @@ async def download_assets(
     workers: int = 8,
     real_footage_first: bool = True,
 ) -> list[dict]:
+    global _COMMONS_API_DISABLED
+    _COMMONS_API_DISABLED = False
     output_dir.mkdir(parents=True, exist_ok=True)
     semaphore = asyncio.Semaphore(workers)
     async with httpx.AsyncClient(
-        timeout=90,
+        timeout=httpx.Timeout(connect=8, read=15, write=15, pool=8),
         headers={"User-Agent": USER_AGENT},
         follow_redirects=True,
     ) as client:
