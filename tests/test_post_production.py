@@ -158,3 +158,36 @@ def test_desktop_app_uses_loopback_llm_only():
     source = source_path.read_text(encoding="utf-8")
     assert "http://127.0.0.1:11434" in source
     assert "https://" not in source
+
+
+def test_ntsc_rates_use_exact_rational_timeline_rates():
+    assert core._rate(23.976) == (24000, 1001)
+    assert core._rate(29.97) == (30000, 1001)
+    assert core._rate(59.94) == (60000, 1001)
+    assert core._rate(24.0) == (24, 1)
+
+
+def test_otio_export_preserves_timeline_gaps(tmp_path: Path):
+    otio = pytest.importorskip("opentimelineio")
+    clips = _clips()
+    project = core.EditProject(
+        name="Gap Test",
+        brief="Editorial timeline with a pause",
+        fps=24,
+        decisions=[
+            core.EditDecision("a", 0, 4, 0, 4),
+            core.EditDecision("b", 7, 10, 0, 3),
+        ],
+    )
+    path = core.write_otio(project, clips, tmp_path / "gap.otio")
+    timeline = otio.adapters.read_from_file(str(path))
+    children = list(timeline.tracks[0])
+    assert len(children) == 3
+    assert isinstance(children[1], otio.schema.Gap)
+    assert children[1].duration().to_seconds() == pytest.approx(3.0)
+
+
+def test_capcut_and_vn_do_not_claim_native_timeline_import():
+    capabilities = core.EDITOR_CAPABILITIES
+    assert capabilities["capcut"]["timeline"] == ["edit_plan"]
+    assert capabilities["vn"]["timeline"] == ["edit_plan"]
