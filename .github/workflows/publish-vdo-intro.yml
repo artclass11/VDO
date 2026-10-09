@@ -1,0 +1,128 @@
+name: Publish VDO Intro Player
+
+on:
+  workflow_run:
+    workflows: ["VDO Intro Video"]
+    types: [completed]
+  push:
+    branches: [main]
+    paths:
+      - "README.md"
+      - ".github/workflows/publish-vdo-intro.yml"
+  workflow_dispatch:
+
+permissions:
+  actions: read
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: vdo-intro-pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Configure GitHub Pages
+        uses: actions/configure-pages@v5
+
+      - name: Download rendered intro artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: VDO-intro-video
+          path: downloaded
+          repository: ${{ github.repository }}
+          run-id: ${{ github.event.workflow_run.id || 37874514089 }}
+          github-token: ${{ github.token }}
+
+      - name: Assemble playable video page
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p site
+          VIDEO="$(find downloaded -type f -name 'vdo_intro.mp4' -print -quit)"
+          test -n "$VIDEO"
+          test -s "$VIDEO"
+          cp "$VIDEO" site/vdo_intro.mp4
+
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          matches = list(Path("downloaded").rglob("captions.srt"))
+          if matches:
+              source = matches[0].read_text(encoding="utf-8-sig")
+              source = re.sub(r"(\d{2}:\d{2}:\d{2}),(\d{3})", r"\1.\2", source)
+              Path("site/captions.vtt").write_text("WEBVTT\n\n" + source, encoding="utf-8")
+          PY
+
+          cat > site/index.html <<'HTML'
+          <!doctype html>
+          <html lang="en">
+          <head>
+            <meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <meta name="theme-color" content="#08090b">
+            <meta name="description" content="Watch the VDO Open Documentary Maker introduction in Full HD.">
+            <title>VDO — Open Documentary Maker</title>
+            <style>
+              :root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,-apple-system,"Segoe UI",sans-serif;background:#08090b;color:#f4f4f5}
+              *{box-sizing:border-box}
+              body{margin:0;min-height:100vh;background:radial-gradient(ellipse at 50% 0%,#17232a 0,transparent 48%),#08090b}
+              main{width:min(1040px,calc(100% - 32px));margin:0 auto;padding:clamp(28px,7vw,76px) 0 48px}
+              .eyebrow{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:#9aa5ad}
+              h1{font-size:clamp(34px,7vw,68px);line-height:.98;letter-spacing:-.055em;margin:18px 0 14px}
+              .sub{color:#a7adb4;line-height:1.7;max-width:650px;margin:0 0 28px}
+              .frame{border:1px solid #30363d;border-radius:16px;overflow:hidden;background:#000;box-shadow:0 30px 100px #0008}
+              video{display:block;width:100%;height:auto;aspect-ratio:16/9;background:#050607}
+              .meta{display:flex;flex-wrap:wrap;gap:10px 18px;color:#a7adb4;font-size:13px;margin:16px 2px 26px}
+              .actions{display:flex;flex-wrap:wrap;gap:12px}
+              a{color:#f4f4f5;text-decoration:none;border:1px solid #414852;border-radius:999px;padding:12px 17px;font-size:14px}
+              a.primary{background:#f4f4f5;color:#111318;border-color:#f4f4f5;font-weight:650}
+              a:hover{border-color:#f4f4f5}
+              footer{border-top:1px solid #252a30;margin-top:52px;padding-top:18px;color:#737d87;font-size:12px}
+              footer a{border:0;padding:0;color:#b4bec7;text-decoration:underline}
+            </style>
+          </head>
+          <body>
+            <main>
+              <div class="eyebrow">VDO / Open Documentary Maker</div>
+              <h1>One idea.<br>One cinematic story.</h1>
+              <p class="sub">A short introduction to VDO — an open-source workflow for turning a topic into a documentary with narration, moving images, music and captions.</p>
+              <div class="frame">
+                <video controls playsinline preload="metadata" aria-label="VDO Open Documentary Maker introduction">
+                  <source src="./vdo_intro.mp4" type="video/mp4">
+                  <track kind="captions" src="./captions.vtt" srclang="en" label="English" default>
+                  Your browser does not support HTML5 video. Use the Download MP4 link below.
+                </video>
+              </div>
+              <div class="meta"><span>1080p Full HD</span><span>30 fps</span><span>MP4 · AAC audio</span><span>English captions available</span></div>
+              <div class="actions">
+                <a class="primary" href="./vdo_intro.mp4" download>Download MP4</a>
+                <a href="https://github.com/artclass11/VDO">View source on GitHub</a>
+                <a href="https://github.com/artclass11/VDO/actions">Build history</a>
+              </div>
+              <footer>Built with VDO’s open-source production pipeline · <a href="https://github.com/artclass11/VDO">github.com/artclass11/VDO</a></footer>
+            </main>
+          </body>
+          </html>
+          HTML
+          test -s site/index.html
+          test -s site/vdo_intro.mp4
+          ls -lh site
+
+      - name: Upload GitHub Pages site
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: site
+
+      - name: Deploy playable video page
+        id: deployment
+        uses: actions/deploy-pages@v4
