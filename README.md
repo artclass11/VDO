@@ -2,6 +2,9 @@
 
 VDO turns one line of text into a complete documentary — with a deterministic production intro mode for the project itself.
 
+▶ **[Watch the VDO intro video](https://artclass11.github.io/VDO/)** — inline 1080p player, with captions and download links.
+
+
 Example:
 
     python main.py "The rise of artificial intelligence" --minutes 10
